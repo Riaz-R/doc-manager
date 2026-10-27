@@ -721,3 +721,27 @@ alternatives.
 - **Alternatives considered:** A line in CLAUDE.md asking Claude to format; relying on the task loop's ruff step alone.
 - **Who chose:** Me
 - **Why I agreed:**
+
+### 115. Task 2: a `UserFacingError` base class for plain-words refusals
+- **Decision:** `errors.py` holds `UserFacingError`. The one error handler flashes any `UserFacingError` and sends the user back to the page they came from. `InvalidTransition` (Task 3), `UploadRefused` (Task 5) and `GroupingError` (Task 7) will each be a kind of `UserFacingError`. The plan lists the three errors but not a shared parent.
+- **Alternatives considered:** Registering the handler once per error class as each is written; catching plain `Exception` and showing its text.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 116. Task 2: "back to the page you came from" uses only the path of the Referer
+- **Decision:** After a refusal, the app redirects to the path (and query) of the `Referer` header, or to Home if there is none. It never uses the full address.
+- **Alternatives considered:** Redirecting to the full `Referer` address; each route naming its own return page.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 117. Task 2: secret key is random on each start; the app logger is shared
+- **Decision:** Flask needs a secret key to carry flashed messages in a cookie. The app makes a new random one each start, so a banner still waiting when the app restarts is lost. The log file handler is swapped on each `create_app()` because Flask's logger is shared by every app made in one process (tests make many).
+- **Alternatives considered:** A fixed key written in the code; a key saved in the data folder.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 118. Task 2: templates and styles live in `web/`, and an `autouse` test fixture isolates the data folder
+- **Decision:** The Flask app is told to look for templates and the stylesheet in `web/templates` and `web/static`, matching the plan's file list. Every test automatically gets `DOCMANAGER_DATA` pointed at a private folder, so a test that calls `create_app()` with no overrides (like the Task 1 command test) can never write a `data/` folder into the project.
+- **Alternatives considered:** Each test passing its own folder; relying on `.gitignore` to hide a stray `data/`.
+- **Who chose:** Claude
+- **Why I agreed:**

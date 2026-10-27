@@ -1,0 +1,59 @@
+/* Large type, big buttons, strong contrast: see SPEC section 4. */
+body {
+  font-family: system-ui, sans-serif;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #111;
+  background: #fff;
+  margin: 0;
+}
+
+nav {
+  background: #111;
+  padding: 0.5rem 1rem;
+}
+
+nav a {
+  color: #fff;
+  display: inline-block;
+  min-height: 48px;
+  line-height: 48px;
+  padding: 0 0.75rem;
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+a {
+  color: #0b3d91;
+}
+
+.flash {
+  background: #fff3c4;
+  border: 3px solid #7a5b00;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.button,
+button {
+  display: inline-block;
+  min-height: 48px;
+  padding: 0 1.25rem;
+  font-size: 1rem;
+  line-height: 48px;
+  color: #fff;
+  background: #0b3d91;
+  border: 2px solid #0b3d91;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 4px solid #c25a00;
+  outline-offset: 2px;
+}

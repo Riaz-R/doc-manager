@@ -3,7 +3,7 @@
 ## Progress
 **Sitting (a) Foundation**
 - [x] Task 1: Project skeleton and a first page on 127.0.0.1
-- [ ] Task 2: Settings, database and page frame
+- [x] Task 2: Settings, database and page frame
 - [ ] Task 3: Lifecycle engine
 - [ ] Task 4: Models with the Page and Document lifecycles
 
