@@ -691,3 +691,9 @@ alternatives.
 - **Alternatives considered:** Connecting MCP servers during the build, for example a GitHub server.
 - **Who chose:** Me
 - **Why I agreed:**
+
+### 110. Pushes are blocked by an enforced rule, not an instruction
+- **Decision:** `.claude/settings.json` denies `Bash(git push *)`, so Claude cannot push even if it tries. CLAUDE.md's "Never run `git push`" line stays as a reminder, but the rule is what enforces it.
+- **Alternatives considered:** Relying on the CLAUDE.md instruction alone.
+- **Who chose:** Me
+- **Why I agreed:**
