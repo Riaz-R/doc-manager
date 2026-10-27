@@ -1,8 +1,12 @@
 from datetime import datetime
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
+import docmanager.models  # noqa: F401  (registers every table with Base)
 from docmanager import create_app
+from docmanager.db import Base
 
 # Every test sees the same "now", so dates never depend on the real clock.
 FIXED_NOW = datetime(2026, 10, 27, 12, 0)
@@ -32,3 +36,12 @@ def app(data_dir):
 @pytest.fixture
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture
+def session():
+    """A throwaway in-memory database with every table, for model-level tests."""
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session

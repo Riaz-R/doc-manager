@@ -763,3 +763,27 @@ alternatives.
 - **Alternatives considered:** Adding the object to a session inside `apply()`.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 122. Task 4: `is_due(today)` is built now, not in Task 21
+- **Decision:** The dispose guard has to know whether a document is Due, so `Document.is_due(today)` (Filed, has a keep-until, and today is after it) is written in this task. Task 21 still adds `add_years()`, `keep_until()`, the Due marker on screens and the retention tests, and can reuse it. A document is kept through its keep-until day, as in R4.
+- **Alternatives considered:** Writing the check inside the guard and moving it to `is_due` in Task 21.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 123. Task 4: "has been read" means the OCR text isn't empty-handed, and the filing guards check in a fixed order
+- **Decision:** A document counts as read when `ocr_text` is set, even if the text is an empty string. Whether there is enough text is the separate low-text check in Task 11. The file and confirm guards report only the first problem, in this order: not read yet, no type, no client. The flag guard checks only that the document was read. Following the plan, the confirm guard also requires "read" (SPEC 3.4 only lists type and client), which is always true for a document that reached Needs checking.
+- **Alternatives considered:** Treating empty text as unread; listing every problem at once; leaving "read" out of the confirm guard.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 124. Task 4: only the fields and tables are built now; markers, `type` and `Box` helpers wait for their tasks
+- **Decision:** `Box`, `Batch`, `Client`, `Page` and `Document` have every field from SPEC 3, and linked objects can be reached from each other (a box's pages and documents, a document's pages in position order). The plan's other members wait for the tasks that use them: `Document.type` and `change_type()` (Tasks 10 and 14), the "No date" and "Needs checking" markers (Task 15), and `Box.ordered_pages()`, `inbox_pages()`, `paper_blockers()` and `paper_can_go()` (Tasks 6 and 19). `created_at`, `filed_at` and `binned_at` on a document can be empty, as the spec says. Box, Batch and Client `created_at` must be given, so the code passes `now` from the app's clock.
+- **Alternatives considered:** Adding the empty markers and `type` now.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 125. Task 4: every (state, action) pair is a separate test, and the spec tables are written out a second time in the test
+- **Decision:** AT-01 is a parametrised test: one test per (state, action) pair, including "(new)": 20 for Page (4 starting states × 5 actions) and 35 for Document (5 × 7). A separate test compares each lifecycle table to the spec's rows written out as plain text, so a wrong row in the code can't pass by being copied into the test. I checked the tests can fail by breaking a table row and a guard message on purpose: 5 tests failed, and I put the code back.
+- **Alternatives considered:** One loop in a single test; checking the tables only through the pairs.
+- **Who chose:** Claude
+- **Why I agreed:**
