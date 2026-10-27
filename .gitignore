@@ -1,0 +1,13 @@
+.venv/
+data/
+*.db
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# generated test files
+tests/**/*.jpg
+tests/**/*.png
+tests/**/*.pdf
+
+demo-box/

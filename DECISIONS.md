@@ -697,3 +697,15 @@ alternatives.
 - **Alternatives considered:** Relying on the CLAUDE.md instruction alone.
 - **Who chose:** Me
 - **Why I agreed:**
+
+### 111. Task 1: no README until Task 25, so `readme` is left out of pyproject.toml
+- **Decision:** `uv init` points `pyproject.toml` at a `README.md`, which doesn't exist until Task 25. I deleted the generated README and removed the `readme` line, because the build fails without the file.
+- **Alternatives considered:** Keeping a placeholder README.md until Task 25.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 112. Task 1: `debug=False` is passed explicitly, and the ruff rule set is spelled `extend-select`
+- **Decision:** The `docmanager` command calls `app.run(host="127.0.0.1", port=5000, debug=False)`, so the test checks debug is off too (plan decision 1 says debug stays off). Ruff uses `extend-select = ["I"]`, which keeps Ruff's default rules and adds import sorting.
+- **Alternatives considered:** Leaving `debug` out, since Flask's default is already off; listing the default rules by hand in `select`.
+- **Who chose:** Claude
+- **Why I agreed:**

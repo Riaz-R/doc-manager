@@ -1,0 +1,33 @@
+[project]
+name = "docmanager"
+version = "0.1.0"
+description = "Local document manager: turns photos of paper into named, searchable PDFs."
+authors = [
+    { name = "Riaz", email = "201987815+Riaz-R@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "flask>=3.1.3",
+]
+
+[project.scripts]
+docmanager = "docmanager.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "ocr: slow tests that run real Tesseract/OCRmyPDF (skip with -m 'not ocr')",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.3",
+]
