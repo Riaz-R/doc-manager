@@ -709,3 +709,15 @@ alternatives.
 - **Alternatives considered:** Leaving `debug` out, since Flask's default is already off; listing the default rules by hand in `select`.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 113. The /task skill was written from a prompt that already worked
+- **Decision:** `.claude/skills/task/SKILL.md` (started with `/task <number>`) reuses, word for word, the prompt that built Task 1 successfully, with `$ARGUMENTS` for the task number. It has `disable-model-invocation: true`, so only I can start it, because it ends in a commit.
+- **Alternatives considered:** Typing the prompt out each time; writing a new, longer skill before trying it on a second task.
+- **Who chose:** Me
+- **Why I agreed:**
+
+### 114. Formatting is enforced by a hook, not an instruction
+- **Decision:** A `PostToolUse` hook in `.claude/settings.json` runs `.claude/hooks/format-python.sh` after every Edit or Write. For a `.py` file it runs `uv run ruff format` and `uv run ruff check --fix` on it. I proved it by making a deliberate mistake (`PORT=5000` and an unused `import os`); the file came back fixed. The task loop's own ruff step stays as a final check.
+- **Alternatives considered:** A line in CLAUDE.md asking Claude to format; relying on the task loop's ruff step alone.
+- **Who chose:** Me
+- **Why I agreed:**
