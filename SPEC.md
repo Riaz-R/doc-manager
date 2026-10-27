@@ -4,7 +4,7 @@ A small local document manager (ECM) that turns boxes of paper client files into
 named, searchable PDFs. Paper can be shredded as soon as it has been digitised;
 each digital record is kept until its retention period ends, then destroyed.
 
-Status: agreed spec, ready to build. Last updated 2026-10-26.
+Status: agreed spec, ready to build. Last updated 2026-10-27.
 
 ---
 
@@ -68,6 +68,7 @@ Known limitations until the should tier is built:
 - A document from a client who isn't in the register can't be filed, because clients only come from the seed script.
 - A phone counter rollover (IMG_9999 → IMG_0001) puts photos in the wrong order.
 - A long document holds the browser page until OCR finishes (up to the 5-minute timeout).
+- Classification is tested on generated text only; how well it does on real phone photos hasn't been measured.
 
 ### Should
 See §11. Should-tier work starts after the must tier works.
@@ -210,6 +211,7 @@ that object; the document keeps its id, pages and history.
 | type_score, runner_up_score | int, nullable | kept to explain the decision |
 | review_reasons | JSON list of text | plain words, for example "More than one client matched: Smith Ltd, J Smith & Co" |
 | pdf_path | text, nullable | the current location (work, archive or bin) |
+| filed_name | text, nullable | the archive filename it was last filed under, including any clash suffix |
 | created_at, filed_at, binned_at | datetime, nullable | |
 
 `document.type` returns the `DocumentType` instance for `doc_type` from a
@@ -256,7 +258,7 @@ A document with no type (`doc_type` null) shows as "Unclassified" and can't be f
 | From | Action | To | Guard |
 |---|---|---|---|
 | (new) | group | Grouped | made by "Make document"; OCR runs straight after |
-| Grouped | file | Filed | OCR succeeded and classification met the confirm conditions (§5.5) |
+| Grouped | file | Filed | OCR succeeded, and the text, type and client checks passed (§5.5) |
 | Grouped | flag | NeedsReview | OCR succeeded and a check failed; records review_reasons |
 | NeedsReview | confirm | Filed | a type is chosen and a client is set |
 | Filed | dispose | InBin | the document is Due (see Markers) |
@@ -317,7 +319,7 @@ same way, with no record.
 | Field | Notes |
 |---|---|
 | id | |
-| filed_name | the filename it was filed under |
+| filed_name | the filename it was last filed under, including any clash suffix |
 | doc_type_label | for example "Invoice" |
 | client_ref, client_name | snapshot |
 | document_date, keep_until | snapshot |
@@ -431,12 +433,13 @@ Should tier: background worker (§11.1).
 
 ### 5.5 Classification and review
 Checks, in order. All reasons that fail are recorded.
-1. **Type check:** each `DocumentType` scores the text with its `score(text)`. The type passes when the top score is at least `MIN_TYPE_SCORE` (default 6) and beats the runner-up by at least `MIN_TYPE_MARGIN` (default 3). Otherwise the document has no type ("Unclassified").
-2. **Client check:** if exactly one `C-0000` reference is found and it exists in the register, it matches. If no reference is found, the client matches when exactly one client's exact name appears (case-insensitive, whole phrase). Otherwise there is no match.
-3. **Date** (does not block filing): the type's `extract` finds its date in UK day-first formats (`14/03/2021`, `14 March 2021`, `2021-03-14`). Dates after today are ignored as misreads.
+1. **Text check:** the OCR text has at least `MIN_OCR_WORDS` words (default 20; a word is any whitespace-separated piece containing a letter or digit). Otherwise the reason is "Very little text was read. Check the photos are clear before shredding the paper."
+2. **Type check:** each `DocumentType` scores the text with its `score(text)`. The type passes when the top score is at least `MIN_TYPE_SCORE` (default 6) and beats the runner-up by at least `MIN_TYPE_MARGIN` (default 3). Otherwise the document has no type ("Unclassified").
+3. **Client check:** if exactly one `C-0000` reference is found and it exists in the register, it matches. If no reference is found, the client matches when exactly one client's exact name appears (case-insensitive, whole phrase). Otherwise there is no match.
+4. **Date** (does not block filing): the type's `extract` finds its date in UK day-first formats (`14/03/2021`, `14 March 2021`, `2021-03-14`). Dates after today are ignored as misreads.
 
-When checks 1 and 2 pass, the document is filed automatically (the `confirm`
-conditions in §3.4); otherwise it is flagged.
+When checks 1, 2 and 3 pass, the document is filed automatically; otherwise it
+is flagged. Confirming in review needs only a type and a client (§3.4).
 
 - **C1 Confident:** **Given** text containing "INVOICE", "Invoice number INV-1043", "Amount due", "C-0042" and "Invoice date 14/03/2021", **then** the type is Invoice, the client is C-0042, document_date is 2021-03-14, keep_until is 2027-03-14, and the document is Filed with no marker.
 - **C2 Unclear type:** **Given** text scoring Invoice 7 and Letter 5, **then** it is flagged with "Not sure what type this is (Invoice or Letter?)" and shown as Unclassified.
@@ -448,6 +451,7 @@ conditions in §3.4); otherwise it is flagged.
 - **C8 Confirm in review:** **Given** a flagged document, **when** the user picks type Invoice and client C-0042 and presses File it, **then** `change_type(InvoiceType())` swaps its type, its fields are re-extracted, and it is Filed with a calculated keep-until.
 - **C9 Type swap keeps the document:** **Given** a flagged document with id 17 shown as Invoice, **when** the user changes the type to Letter, **then** it is still document 17 with the same pages and history, its fields are the letter fields, and its keep-until uses `LetterType.retention_years`.
 - **C10 Review guard:** **Given** the client is still empty, **when** File it is pressed, **then** it is refused with "Choose a client before filing", and the form is shown again with the user's choices.
+- **C11 Very little text:** **Given** text with a confident type and client but fewer than 20 words, **then** it is flagged with "Very little text was read. Check the photos are clear before shredding the paper."
 
 Should tier: add a client from review, save for later (§11.4).
 
@@ -516,7 +520,7 @@ Each test passes only when every stated condition holds; otherwise it fails.
 | AT-08 | Not a page (G6, G7): ticked photos are Discarded, absent from the inbox, listed in the Bin, and skipped when inside a grouped range | integration |
 | AT-09 | Restore (G8): the photo is Inbox again, absent from the Bin, and shown in its filename position | integration |
 | AT-10 | OCR: W2–W4 with OCR replaced by a fake that fails or hangs; W5 start-up check | integration |
-| AT-11 | Classification: C1–C6 on text fixtures, including each type's `score()` and the reasons' exact wording | unit |
+| AT-11 | Classification: C1–C6 and C11 on text fixtures, including each type's `score()` and the reasons' exact wording | unit |
 | AT-12 | Review: C7–C10, including `change_type()` keeping the same id, pages and history | integration |
 | AT-13 | Naming: N1–N5 | unit |
 | AT-14 | Paper can go is shown: P1, P5, P6 | integration |
@@ -596,7 +600,7 @@ doc-manager/
 
 - **Localhost only:** the server binds `127.0.0.1:5000`, with the host fixed in code. Until the cross-site protections (§11.8) are built, a malicious web page open in the same browser could submit the app's forms.
 - **No network:** no outbound requests at runtime; no CDN fonts, scripts or styles; Tesseract language data is local.
-- **No real data:** all documents are generated by `demo/` code, using made-up names, fictional banks and senders, and `C-0000` refs. No real organisation's name or branding is imitated. The repo never contains a `data/` folder.
+- **No real data:** all documents are generated by `demo/` code, using made-up names, fictional senders, and `C-0000` refs. No real organisation's name or branding is imitated. The repo never contains a `data/` folder.
 - **No AI at runtime:** classification is each type's `score()` and regexes only.
 - **No JavaScript:** only HTML forms.
 - **Accessibility:** see the design rules in §4.
@@ -703,8 +707,8 @@ Behaviours:
 - **G10:** a Filed document doesn't offer Ungroup, and a crafted POST is refused with "Filed documents can't be ungrouped".
 
 ### 11.4 Review extras
-- **Save for later:** NeedsReview `save` → NeedsReview stores the user's edits (C12).
-- **Add a client from review:** creates a client with the next free `C-0000` ref and selects it (C11).
+- **Save for later:** NeedsReview `save` → NeedsReview stores the user's edits (C13).
+- **Add a client from review:** creates a client with the next free `C-0000` ref and selects it (C12).
 - **Correcting after filing:** Filed `correct` → Filed, with the same guard as confirm. Changing the type, client or date moves the file to its newly calculated path, recalculates keep-until, and removes empty old folders (N6).
 
 ### 11.5 Clients screen and aliases
@@ -757,4 +761,4 @@ app's forms, for example to empty the bin (CSRF and DNS rebinding).
 
 ### 11.10 Should-tier tests
 These are written when each item is built: worker failure, requeue and refresh;
-X1–X5; G9–G10; C11, C12 and N6; O2–O4; S1–S5; F1–F2; D7; B9; R6; alias matching.
+X1–X5; G9–G10; C12, C13 and N6; O2–O4; S1–S5; F1–F2; D7; B9; R6; alias matching.

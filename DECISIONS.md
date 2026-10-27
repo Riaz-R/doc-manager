@@ -1,7 +1,7 @@
 # Decisions log
 
 One entry per decision in [SPEC.md](SPEC.md), grouped in the order of the spec.
-Last updated 2026-10-26.
+Last updated 2026-10-27.
 
 "Who chose" is one of:
 - **Me**: from my original brief, or an edit I asked for after the interview.
@@ -653,3 +653,41 @@ alternatives.
 - **Alternatives considered:** Not discussed.
 - **Who chose:** Proposed by Claude
 - **Why I agreed:** <span style="color: #F5A623">Took the recommendation</span>
+
+---
+
+## Added with the build plan
+
+### 105. Very little text read: flag the document for checking
+- **Decision:** After OCR, a document with fewer than `MIN_OCR_WORDS` words (default 20, in `config.py`) is flagged Needs checking with the reason "Very little text was read. Check the photos are clear before shredding the paper." This is the first check in §5.5, and it adds a third condition to automatic filing (decision 55). Behaviour C11, tested in AT-11.
+- **Alternatives considered:** Filing on the type and client checks alone, as in decision 55.
+- **Who chose:** Me
+- **Why I agreed:**
+
+---
+
+## How this project is built
+
+### 106. Spec written by Opus at high effort after a multiple-choice interview
+- **Decision:** SPEC.md was written by Claude Opus at high effort, after an interview in which Claude asked me multiple-choice questions.
+- **Alternatives considered:** Writing the spec myself; an open-ended conversation instead of multiple-choice questions.
+- **Who chose:** Me
+- **Why I agreed:**
+
+### 107. Plan written in plan mode with opusplan; building at medium effort
+- **Decision:** PLAN.md was written in plan mode with the `opusplan` model setting: Opus plans, Sonnet builds. Building runs at medium effort.
+- **Alternatives considered:** Opus for both planning and building; Sonnet for both; a higher effort for building.
+- **Who chose:** Me
+- **Why I agreed:**
+
+### 108. Context cleared between phases
+- **Decision:** The conversation is cleared between phases. The project files (SPEC.md, DECISIONS.md, PLAN.md, CLAUDE.md) carry everything across.
+- **Alternatives considered:** One long conversation, relying on automatic compaction.
+- **Who chose:** Me
+- **Why I agreed:**
+
+### 109. No MCP servers for this build
+- **Decision:** The build uses no MCP servers. There is nothing external to connect, the `gh` command-line tool covers GitHub, and each server adds context overhead.
+- **Alternatives considered:** Connecting MCP servers during the build, for example a GitHub server.
+- **Who chose:** Me
+- **Why I agreed:**
