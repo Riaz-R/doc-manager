@@ -9,6 +9,8 @@ class Base(DeclarativeBase):
 
 def init_db(app: Flask, db_path) -> None:
     """Create the engine and any missing tables, and close sessions after each request."""
+    import docmanager.models  # noqa: F401  (registers the tables with Base)
+
     engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
     app.extensions["docmanager_engine"] = engine

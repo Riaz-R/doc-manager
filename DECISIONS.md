@@ -745,3 +745,21 @@ alternatives.
 - **Alternatives considered:** Each test passing its own folder; relying on `.gitignore` to hide a stray `data/`.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 119. Task 3: how a refusal message is built, and what a "(new)" object is called
+- **Decision:** `Lifecycle` is given a noun ("document") and, for each action, an optional phrase ("moved to the bin"), so a refusal reads `This document can't be moved to the bin while it is "Needs checking"`. An action with no phrase reads `can't have "action" applied`. A brand-new object (no state yet) is called "New" in these messages. The enum for each state has a `.label` property, as the plan describes.
+- **Alternatives considered:** Building the message from the action name alone (awkward, for example "can't be dispose"); a separate message table kept outside the lifecycle.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 120. Task 3: a move to "(row deleted)" leaves the stored state alone
+- **Decision:** When `apply()` makes a move whose target is "(row deleted)" (destroy), it records the StateChange with `to_state` empty but doesn't change the object's own state. A blank state would look like "(new)" and let the object be uploaded or grouped again; the disposal service deletes the row in the same transaction anyway.
+- **Alternatives considered:** Setting the state to empty; adding a special "Destroyed" state.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 121. Task 3: `apply()` needs the object to be in a session already
+- **Decision:** Calling `apply()` on an object that hasn't been added to a database session raises a plain `RuntimeError` ("Add this object to a session before applying an action"). This is a mistake in the code, not something a user can cause, so it is not a `UserFacingError`. A new object is added to the session first, and `apply()` then flushes it to get its id before writing the history row, as the plan says.
+- **Alternatives considered:** Adding the object to a session inside `apply()`.
+- **Who chose:** Claude
+- **Why I agreed:**
