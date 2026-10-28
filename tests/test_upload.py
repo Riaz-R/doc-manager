@@ -30,12 +30,14 @@ def photo(name: str, label: str | None = None, fmt: str = "JPEG"):
     return (io.BytesIO(photo_bytes(label or name, fmt)), name)
 
 
-def upload(client, files, *, new_box=None, box_id=None):
+def upload(client, files, *, new_box=None, box_id=None, **extra):
+    """Post an upload. `extra` adds or overrides form fields (to test a crafted form)."""
     data = {"photos": files}
     if new_box is not None:
-        data.update({"box": "new", "new_box_name": new_box})
+        data.update({"choice": "new", "new_box_name": new_box})
     else:
-        data["box"] = str(box_id)
+        data.update({"choice": "existing", "box": str(box_id)})
+    data.update(extra)
     return client.post("/upload", data=data, follow_redirects=True)
 
 
@@ -200,7 +202,11 @@ def test_uploading_into_a_box_that_does_not_exist_is_refused(client, db):
 def test_choosing_no_photos_is_refused_and_makes_no_box(client, db):
     response = client.post(
         "/upload",
-        data={"box": "new", "new_box_name": "Box 1", "photos": (io.BytesIO(b""), "")},
+        data={
+            "choice": "new",
+            "new_box_name": "Box 1",
+            "photos": (io.BytesIO(b""), ""),
+        },
         follow_redirects=True,
     )
 
@@ -302,7 +308,8 @@ def test_upload_screen_offers_boxes_new_box_and_a_multiple_file_picker(client):
     page = client.get("/upload").text
 
     assert "Box 1" in page
-    assert 'value="new"' in page
+    assert 'name="choice" value="new"' in page
+    assert 'name="choice" value="existing"' in page
     assert 'name="new_box_name"' in page
     assert 'type="file"' in page
     assert "multiple" in page
@@ -332,7 +339,7 @@ def test_an_upload_over_the_size_limit_says_to_upload_in_parts(data_dir):
 
     response = client.post(
         "/upload",
-        data={"box": "new", "new_box_name": "Box 1", "photos": big},
+        data={"choice": "new", "new_box_name": "Box 1", "photos": big},
         follow_redirects=True,
     )
 
@@ -346,3 +353,87 @@ def test_the_size_limit_defaults_to_the_config_value(app):
     from docmanager import config
 
     assert app.config["MAX_CONTENT_LENGTH"] == config.MAX_UPLOAD_BYTES
+
+
+# --- The box choice: only the selected option is used ---
+
+
+def test_existing_box_chosen_with_a_name_typed_adds_to_the_existing_box(client, db):
+    upload(client, [photo("IMG_0001.jpg")], new_box="Box 1")
+    box = db.scalars(select(Box)).one()
+
+    response = upload(
+        client, [photo("IMG_0002.jpg")], box_id=box.id, new_box_name="Typed name"
+    )
+
+    assert "1 photo added." in html.unescape(response.text)
+    assert db.scalars(select(Box)).all() == [box]
+    assert len(db.scalars(select(Page).where(Page.box_id == box.id)).all()) == 2
+
+
+def test_new_box_chosen_with_a_dropdown_value_set_makes_the_new_box(client, db):
+    upload(client, [photo("IMG_0001.jpg")], new_box="Box 1")
+    old_box = db.scalars(select(Box)).one()
+
+    upload(client, [photo("IMG_0002.jpg")], new_box="Box 2", box=str(old_box.id))
+
+    boxes = db.scalars(select(Box).order_by(Box.id)).all()
+    assert [b.name for b in boxes] == ["Box 1", "Box 2"]
+    assert len(db.scalars(select(Page).where(Page.box_id == old_box.id)).all()) == 1
+    assert len(db.scalars(select(Page).where(Page.box_id == boxes[1].id)).all()) == 1
+
+
+def test_new_box_chosen_with_an_empty_name_is_refused_even_if_a_box_is_selected(
+    client, db
+):
+    upload(client, [photo("IMG_0001.jpg")], new_box="Box 1")
+    box = db.scalars(select(Box)).one()
+
+    response = upload(client, [photo("IMG_0002.jpg")], new_box="", box=str(box.id))
+
+    assert "Give the new box a name" in html.unescape(response.text)
+    assert len(db.scalars(select(Page)).all()) == 1
+
+
+def test_new_box_chosen_with_a_duplicate_name_gives_the_b8_message(client, db):
+    upload(client, [photo("IMG_0001.jpg")], new_box="Box 1")
+
+    response = upload(client, [photo("IMG_0002.jpg")], new_box="Box 1")
+
+    assert "There is already a box called Box 1" in html.unescape(response.text)
+    assert len(db.scalars(select(Box)).all()) == 1
+
+
+@pytest.mark.parametrize("extra", [{"choice": "bogus"}, {"choice": ""}])
+def test_an_unknown_choice_is_refused(client, db, extra):
+    response = upload(client, [photo("IMG_0001.jpg")], new_box="Box 1", **extra)
+
+    assert "Choose whether to add to an existing box or make a new one" in (
+        html.unescape(response.text)
+    )
+    assert db.scalars(select(Box)).all() == []
+
+
+def test_existing_chosen_without_a_box_selected_is_refused(client, db):
+    response = upload(client, [photo("IMG_0001.jpg")], box_id="")
+
+    assert "Choose a box to add the photos to" in html.unescape(response.text)
+    assert db.scalars(select(Page)).all() == []
+
+
+def test_with_no_boxes_new_box_is_selected_by_default(client):
+    page = client.get("/upload").text
+
+    assert 'name="choice" value="new" checked' in page
+    assert 'name="choice" value="existing" checked' not in page
+    assert 'name="choice" value="existing" disabled' in page
+
+
+def test_with_boxes_add_to_an_existing_box_is_selected_by_default(client):
+    upload(client, [photo("IMG_0001.jpg")], new_box="Box 1")
+
+    page = client.get("/upload").text
+
+    assert 'name="choice" value="existing" checked' in page
+    assert 'name="choice" value="new" checked' not in page
+    assert '<option value="new"' not in page  # no "New box" entry in the dropdown

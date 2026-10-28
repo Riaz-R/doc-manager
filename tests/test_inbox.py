@@ -96,7 +96,7 @@ def upload(client, filenames, new_box="Box 1"):
     files = [(io.BytesIO(photo_bytes(name)), name) for name in filenames]
     client.post(
         "/upload",
-        data={"box": "new", "new_box_name": new_box, "photos": files},
+        data={"choice": "new", "new_box_name": new_box, "photos": files},
     )
 
 

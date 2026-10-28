@@ -3,19 +3,35 @@
 {% block content %}
 <h1>Upload photos</h1>
 <form method="post" action="{{ url_for('main.upload_photos') }}" enctype="multipart/form-data">
-  <p>
-    <label for="box">Which box?</label><br>
-    <select id="box" name="box">
-      <option value="new">New box</option>
-      {% for box in boxes %}
-      <option value="{{ box.id }}">{{ box.name }}</option>
-      {% endfor %}
-    </select>
-  </p>
-  <p>
-    <label for="new_box_name">Name for a new box</label><br>
-    <input id="new_box_name" name="new_box_name" type="text" maxlength="60">
-  </p>
+  <fieldset>
+    <legend>Which box?</legend>
+    <p>
+      <label>
+        <input type="radio" name="choice" value="existing"
+               {%- if boxes %} checked{% else %} disabled{% endif %}>
+        Add to an existing box
+      </label><br>
+      {% if boxes %}
+      <label for="box">Existing box</label>
+      <select id="box" name="box">
+        {% for box in boxes %}
+        <option value="{{ box.id }}">{{ box.name }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      There are no boxes yet.
+      {% endif %}
+    </p>
+    <p>
+      <label>
+        <input type="radio" name="choice" value="new"
+               {%- if not boxes %} checked{% endif %}>
+        New box
+      </label><br>
+      <label for="new_box_name">Name for the new box</label>
+      <input id="new_box_name" name="new_box_name" type="text" maxlength="60">
+    </p>
+  </fieldset>
   <p>
     <label for="photos">Photos (JPEG or PNG)</label><br>
     <input id="photos" name="photos" type="file" accept="image/jpeg,image/png" multiple>

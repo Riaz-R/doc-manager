@@ -55,10 +55,22 @@ def upload_photos():
     if not files:
         raise upload.UploadRefused("Choose at least one photo")
 
-    choice = request.form.get("box", "new")
+    # Only the chosen option is used; the other field is ignored.
+    choice = request.form.get("choice")
+    if choice == "new":
+        box_id = None
+    elif choice == "existing":
+        box_id = request.form.get("box", "")
+        if not box_id.isdigit():
+            raise upload.UploadRefused("Choose a box to add the photos to")
+        box_id = int(box_id)
+    else:
+        raise upload.UploadRefused(
+            "Choose whether to add to an existing box or make a new one"
+        )
     box = upload.find_or_create_box(
         session,
-        box_id=int(choice) if choice.isdigit() else None,
+        box_id=box_id,
         new_name=request.form.get("new_box_name", ""),
         now=current_app.config["CLOCK"](),
     )

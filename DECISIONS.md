@@ -823,3 +823,9 @@ alternatives.
 - **Alternatives considered:** Adding the buttons now, with routes that do nothing; sending the user to the inbox after an upload.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 132. Fix: the Upload screen's box choice is two radio buttons, and only the selected one is used
+- **Decision:** Before, one dropdown held the existing boxes plus a "New box" entry, and the name field beside it was used only when "New box" was picked. So an existing box with a name typed added to the existing box and the typed name was silently ignored. Now the screen has two radio buttons, "Add to an existing box" (with the dropdown of boxes) and "New box" (with the name field). The form sends `choice` as `existing` or `new`, and only the selected option is used: the other field is ignored, even when filled in. "New box" with an empty name gives "Give the new box a name", and a duplicate name gives "There is already a box called …" (B8). With no boxes yet, "New box" is selected and "Add to an existing box" is greyed out; otherwise "Add to an existing box" is selected. Two refusals the rule needed, in new wording: "Choose a box to add the photos to" (existing chosen but no box selected) and "Choose whether to add to an existing box or make a new one" (a form with no valid choice, which only a crafted request can send).
+- **Alternatives considered:** Keeping the single dropdown and refusing when both are filled in; using the typed name whenever it isn't empty.
+- **Who chose:** Me
+- **Why I agreed:**
