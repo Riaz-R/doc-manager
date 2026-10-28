@@ -27,11 +27,6 @@ class MadeDocument:
     first_number: int
     last_number: int
 
-    def message(self) -> str:
-        if self.first_number == self.last_number:
-            return f"Document made from photo {self.first_number}"
-        return f"Document made from photos {self.first_number} to {self.last_number}"
-
 
 def make_document(
     session: Session,

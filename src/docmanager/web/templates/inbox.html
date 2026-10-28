@@ -9,7 +9,13 @@
   <ul>
     {% for document in unread %}
     {% set count = document.pages|length %}
-    <li>Document {{ document.id }}: {{ count }} {{ "page" if count == 1 else "pages" }} &ndash; {{ document.state_label }}</li>
+    <li>
+      Document {{ document.id }}: {{ count }} {{ "page" if count == 1 else "pages" }} &ndash; {{ document.state_label }}
+      {% if document.ocr_error %}<br>{{ document.ocr_error }}{% endif %}
+      <form method="post" action="{{ url_for('main.retry_document', document_id=document.id) }}">
+        <button type="submit" class="secondary">Retry</button>
+      </form>
+    </li>
     {% endfor %}
   </ul>
 </section>

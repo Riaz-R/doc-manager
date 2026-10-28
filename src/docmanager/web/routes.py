@@ -12,8 +12,9 @@ from flask import (
 
 from docmanager.db import get_session
 from docmanager.models.box import Box
+from docmanager.models.document import Document
 from docmanager.models.page import Page
-from docmanager.services import grouping, upload
+from docmanager.services import filing, grouping, upload
 
 bp = Blueprint("main", __name__)
 
@@ -54,9 +55,32 @@ def make_document(box_id):
         _page_id(request.form.get("last")),
         now=current_app.config["CLOCK"](),
     )
-    session.commit()
-    flash(made.message())
+    _read_and_flash(made.document)  # this commits the new document first
     return redirect(url_for("main.inbox", box_id=box.id))
+
+
+@bp.post("/documents/<int:document_id>/retry")
+def retry_document(document_id):
+    document = get_session().get(Document, document_id)
+    if document is None:
+        abort(404)
+    box_id = document.box_id
+    _read_and_flash(document)
+    return redirect(url_for("main.inbox", box_id=box_id))
+
+
+def _read_and_flash(document):
+    """Read the document (OCR runs while the page waits), keep the outcome, tell the user."""
+    session = get_session()
+    result = filing.read_document(
+        session,
+        document,
+        paths=current_app.config["PATHS"],
+        ocr_runner=current_app.config["OCR_RUNNER"],
+        now=current_app.config["CLOCK"](),
+    )
+    session.commit()
+    flash(result.message())
 
 
 @bp.post("/boxes/<int:box_id>/discard")

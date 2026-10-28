@@ -126,9 +126,8 @@ def test_g7_a_not_a_page_photo_is_skipped_when_grouping_through_the_screens(clie
     upload(client, 10)
     mark_not_a_page(client, db, [4])
 
-    response = make_document(client, db, 3, 6)
+    make_document(client, db, 3, 6)
 
-    assert "Document made from photos 3 to 6" in text(response)
     document = db.scalars(select(Document)).one()
     assert [p.original_filename for p in document.pages] == [
         "IMG_0003.jpg",

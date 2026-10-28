@@ -94,6 +94,18 @@ class Document(Stateful, Base):
         """The DocumentType this document holds, or None while it is "Unclassified"."""
         return DOCUMENT_TYPES.get(self.doc_type)
 
+    def change_type(self, new_type: DocumentType, *, today: date) -> None:
+        """Swap this document's type, and read its fields and date again for the new type.
+
+        The row, its id, its pages and its state stay as they are (SPEC 3.4).
+        """
+        found = new_type.extract(self.ocr_text or "", today)
+        self.doc_type = new_type.key
+        self.document_date = found.pop("document_date")
+        self.fields = (
+            found  # a new dict: SQLAlchemy can't see changes inside the old one
+        )
+
     @property
     def state_label(self) -> str:
         """What to show the user. A grouped document that failed to read says so."""

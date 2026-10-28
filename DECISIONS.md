@@ -955,3 +955,27 @@ alternatives.
 - **Alternatives considered:** Checking only when the first document is read; a fake that succeeds by default.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 154. Task 14: how `read_document` works, step by step
+- **Decision:** `filing.read_document(session, document, *, paths, ocr_runner, now)` (1) refuses a document that isn't Grouped or already has text, with "This document has already been read"; (2) commits, so the Grouped document is safely stored before the long OCR step (plan decision 5; this is the one service that commits itself, and the route commits the outcome afterwards); (3) clears any old `work/<id>.pdf` and `work/<id>.txt`, combines the photos into `work/<id>-images.pdf`, runs the OCR program, and reads the text file as UTF-8 (a bad byte is replaced, not a crash); (4) always deletes the images PDF afterwards, while the text file stays in `work/`; (5) on `OcrFailed` writes "Reading document 3 failed: <detail>" to the log, removes partial output, sets `ocr_error` to the fixed sentence and leaves the document Grouped; (6) on success stores the text, clears `ocr_error`, runs `classify`, and stores the type, fields, date, client, both scores and the reasons **even when the document is then flagged** (so review starts from what was found); (7) files it or flags it. Filing works out the archive path and the clash suffix first, then applies `file` (so the guards have the last word), then moves the PDF from `work/` into the archive, and records `pdf_path` ("archive/…", relative to the data folder), `filed_name` and `filed_at`. A flagged document keeps its PDF at `work/<id>.pdf`. Any other error (the power going out, a bug) is not caught: the 500 page is shown and the committed document is left Grouped with no text and no error, which is exactly the W4 case, listed with Retry.
+- **Alternatives considered:** Making the route commit before calling the service; deleting the work PDF of a flagged document.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 155: Task 14: the message after Make document, and what happened to "Document made from photos 3 to 6"
+- **Decision:** The banner is now exactly one of the three the plan lists: "Filed as 2021-03-14 Invoice INV-1043" (the archive filename without ".pdf", including any " (2)"), "Needs checking: <reasons joined with "; ">" (decision 11), or the W2 sentence "Couldn't read this document. Try again, or retake the photos." The Task 7 wording "Document made from photos 3 to 6" was only meant to last until this task, so `MadeDocument.message()` is gone (the first and last numbers stay on `MadeDocument`). Seven earlier tests (in `test_grouping.py` and `test_not_a_page.py`) asserted that wording or the "Not read yet" label; they now check what they were really about (the pages grouped, their positions, the inbox listing) and leave the OCR outcomes to `test_reading.py`.
+- **Alternatives considered:** Keeping the photo range as a prefix ("Document made from photos 3 to 6. Filed as …").
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 156: Task 14: Retry, and the inbox list of documents waiting to be read
+- **Decision:** `POST /documents/<id>/retry` runs the same reading steps and returns to the inbox of the document's box. It is refused with "This document has already been read" for a document that is Filed, Needs checking or already has text (so a crafted POST can't read a document twice), and an unknown id is a 404. The inbox section "Documents not read yet" lists every Grouped document with its label ("Couldn't read" when `ocr_error` is set, "Not read yet" otherwise), the error sentence when there is one, and a **Retry** button. SPEC section 4 calls this section "Couldn't read" and says it lists Grouped documents with their error; I kept the Task 7 heading because it also holds W4 documents that have no error (stopped mid-read), and both kinds get the same button.
+- **Alternatives considered:** Two separate sections ("Couldn't read" and "Not read yet"); letting Retry re-read a document that has text.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 157: Task 14: `Document.change_type()`
+- **Decision:** `change_type(new_type, *, today)` sets `doc_type` to the new type's key, then reads the fields and the date again from `ocr_text` with the new type (a document with no text is read as empty text, so every field comes out `None`). The date goes into `document_date` and the fields into a **new** dict, as the plan's JSON rule says. The id, state and pages are untouched. It does not calculate `keep_until` yet: that is Task 21, which the plan says will make `change_type()` set it. `read_document` doesn't call it, because `classify` has already read the fields for the chosen type; Task 17 (confirming in review) will.
+- **Alternatives considered:** Taking the type's key instead of the object; having `read_document` call `change_type`.
+- **Who chose:** Claude
+- **Why I agreed:**
