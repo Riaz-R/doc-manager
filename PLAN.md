@@ -12,7 +12,7 @@
 - [x] Task 6: Inbox in filename order
 - [x] Task 7: Make document
 - [x] Task 8: Not a page, restore and the Bin
-- [ ] Task 9: Demo photo generator
+- [x] Task 9: Demo photo generator
 
 **Sitting (c) OCR, classification, filing**
 - [ ] Task 10: Document types and dates

@@ -22,7 +22,7 @@ def test_command_serves_only_on_127_0_0_1(monkeypatch):
 
     monkeypatch.setattr(Flask, "run", record_run)
 
-    cli.main()
+    cli.main([])
 
     assert calls == [((), {"host": "127.0.0.1", "port": 5000, "debug": False})]
 

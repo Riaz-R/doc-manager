@@ -865,3 +865,27 @@ alternatives.
 - **Alternatives considered:** Two separate forms (a tick box would then belong to only one of them); the "Not a page" button at the bottom only.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 139. Task 9: no pound sign in the demo invoice, because the built-in font can't draw it
+- **Decision:** Pillow's built-in font draws `£` (and `€`) as the same blank "missing character" box, so the OCR would never see it. The demo invoice therefore has no currency symbol: "All prices in pounds" above the lines, and "Amount due 120.00". A test draws every character used in the demo text and fails if any of them comes out as that blank box, so this can't creep back in. **For Task 10:** the amount rule should treat the `£` as optional ("Amount due 120.00" as well as "Amount due £120.00"), which is sensible anyway because OCR often misreads that symbol.
+- **Alternatives considered:** Writing "GBP"; drawing a `£` by hand; using a font file from the computer (not the same on every machine, and the plan says to use Pillow's built-in font).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 140. Task 9: the two lens covers are pure black but not byte-for-byte identical
+- **Decision:** The upload skips a photo whose bytes match one it already has (B3/B4), so two identical black JPEGs would make the second lens cover "skipped – already uploaded". Each demo JPEG carries its own short comment (for example "lens cover 1"), which changes the file's bytes but not a single pixel: the covers still decode to exactly black. Tests check that the covers are pure black, that every file's bytes differ, that every page image differs, and that the whole folder uploads with all 7 photos added and none skipped.
+- **Alternatives considered:** Making the second cover one pixel taller or a very slightly different black (not "pure black"); a different quality setting.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 141. Task 9: the demo box layout, its made-up content, and what `make-photos` does
+- **Decision:** `write_demo_box(out_dir)` writes 7 files: the invoice on `IMG_0001` and `IMG_0002`, a lens cover on `IMG_0003`, the letter on `IMG_0004`, a lens cover on `IMG_0005`, and the unclear document on `IMG_0006` and `IMG_0007` (covers between documents only, none at the end). It makes the folder if needed, overwrites files of the same names, and returns the paths. Content, all invented: the invoice is from "Brightwell Flour Mills" to C-0042 Hollybrook Bakery Ltd (INV-1043, 14/03/2026, amount due 120.00, a second page of payment terms); the letter is from "Fernwood Accountancy Services" to the same client C-0042 (5 May 2026, "Re: Year end accounts reminder"), so Task 16's seed only has to include the one client the plan names; the unclear document is some notes with no client and none of the words either type looks for ("invoice", "amount", "due", "dear", "please" and so on; a test lists them, so Task 10's keywords must stay away from those words in this document). Every page has at least 20 words. Text is 40px, wrapped inside 100px margins, and an overlong page raises "Too much text for one page" rather than running off the bottom.
+- **Alternatives considered:** A different client for the letter (needs the seed to know it); a trailing lens cover after the last document.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 142. Task 9: `docmanager` now reads its command line
+- **Decision:** `cli.main(argv=None)` uses `argparse`. With no arguments it serves the app on 127.0.0.1 exactly as before (still no option for the host), and `docmanager make-photos OUT_DIR` writes the demo box, prints "Wrote 7 photos to OUT_DIR" and does not start the server. A missing OUT_DIR is refused by argparse (exit code 2, "OUT_DIR" in the message). The older AT-21 test now calls `cli.main([])`, because with no list it would read pytest's own command line. `seed` joins in Task 16.
+- **Alternatives considered:** A separate script for the demo photos; leaving `main()` unchanged and adding a second entry point in `pyproject.toml`.
+- **Who chose:** Claude
+- **Why I agreed:**
