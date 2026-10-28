@@ -19,6 +19,9 @@ def create_app(overrides: dict | None = None) -> Flask:
     # fine here: it only means a message pending across a restart is lost.
     app.config["SECRET_KEY"] = secrets.token_hex(32)
     app.config["CLOCK"] = datetime.now
+    app.config["MAX_CONTENT_LENGTH"] = (
+        config.MAX_UPLOAD_BYTES
+    )  # Flask answers 413 above it
     app.config.update(overrides or {})
 
     paths = (
@@ -63,6 +66,10 @@ def _register_error_pages(app: Flask) -> None:
         if referrer.query:
             target += "?" + referrer.query
         return redirect(target)
+
+    from docmanager.web.routes import too_big
+
+    app.register_error_handler(413, too_big)
 
     @app.errorhandler(404)
     def not_found(_error):

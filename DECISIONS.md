@@ -787,3 +787,27 @@ alternatives.
 - **Alternatives considered:** One loop in a single test; checking the tables only through the pairs.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 126. Task 5: services never commit; `find_or_create_box` takes either a box id or a new name
+- **Decision:** `find_or_create_box(session, box_id=..., new_name=..., now=...)` returns the existing box when it is given an id (refusing "That box doesn't exist" for an unknown one), and otherwise makes a new box from the name, trimmed of spaces. `upload_photos` is given the box and the files. Neither commits: the route commits once after both have worked, so a refusal leaves nothing behind. Files are passed as a generator of (filename, bytes), so only one photo's bytes are in memory at a time, which matters for a 500 MB upload.
+- **Alternatives considered:** A single `upload_photos` that also finds the box; committing inside the service; reading every file into a list first.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 127. Task 5: wording the plan didn't give, and what counts as "not a photo"
+- **Decision:** Choosing no files shows "Choose at least one photo", and no box is made. An unknown box id shows "That box doesn't exist". A corrupt or cut-off JPEG or PNG, and any other kind of file, are listed together as "not a photo", while HEIC files (by `.heic` or `.heif`, any capitalisation) use the HEIC wording from decision 12. A file that is decoded as a different kind of photo from its extension (a PNG named `scan.jpg`) is accepted and stored under its real extension.
+- **Alternatives considered:** A separate "damaged photo" wording for corrupt files; trusting the filename's extension.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 128. Task 5: an upload always records a Batch, and the over-size page is a banner on the Upload screen
+- **Decision:** Every upload that gets as far as a valid box writes a Batch with its counts, even when every file is skipped or refused (it is the record of what was tried). A too-large upload (HTTP 413) sends the user back to the Upload screen with the banner "That upload is too big for one go. Upload in parts: choose some of the photos, then the rest, into the same box." The limit is Flask's `MAX_CONTENT_LENGTH`, set from `config.MAX_UPLOAD_BYTES` and changeable in tests through the app overrides.
+- **Alternatives considered:** Not recording a Batch when nothing was added; a separate error page for 413.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 129. Task 5: Home counts photos to sort with one database query
+- **Decision:** Home gets each box's "N photos to sort" from a single grouped query (`boxes_with_inbox_counts`) instead of loading every Page of every box. It writes "1 photo" and "N photos", and "0 photos to sort" for an empty inbox. `Box.inbox_pages()` still waits for Task 6.
+- **Alternatives considered:** Counting through `box.pages` in the template.
+- **Who chose:** Claude
+- **Why I agreed:**

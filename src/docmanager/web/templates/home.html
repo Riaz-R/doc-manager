@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Doc Manager</h1>
-<p>The app is running.</p>
+<p><a class="button" href="{{ url_for('main.upload_form') }}">Upload photos</a></p>
+
+<h2>Boxes</h2>
+{% if boxes %}
+<ul class="boxes">
+  {% for box, inbox_count in boxes %}
+  <li>
+    <strong>{{ box.name }}</strong>:
+    {{ inbox_count }} {{ "photo" if inbox_count == 1 else "photos" }} to sort
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>No boxes yet. Upload some photos to start one.</p>
+{% endif %}
 {% endblock %}

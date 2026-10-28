@@ -8,7 +8,7 @@
 - [x] Task 4: Models with the Page and Document lifecycles
 
 **Sitting (b) Upload, inbox, grouping, Not a page**
-- [ ] Task 5: Upload into a box
+- [x] Task 5: Upload into a box
 - [ ] Task 6: Inbox in filename order
 - [ ] Task 7: Make document
 - [ ] Task 8: Not a page, restore and the Bin

@@ -1,6 +1,8 @@
+import io
 from datetime import datetime
 
 import pytest
+from PIL import Image, ImageDraw
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -45,3 +47,12 @@ def session():
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
+
+
+def photo_bytes(label: str, fmt: str = "JPEG") -> bytes:
+    """A made-up photo: the label drawn on white. Different labels give different bytes."""
+    image = Image.new("RGB", (600, 800), "white")
+    ImageDraw.Draw(image).text((40, 40), label, fill="black", font_size=48)
+    buffer = io.BytesIO()
+    image.save(buffer, format=fmt)
+    return buffer.getvalue()

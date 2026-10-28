@@ -57,3 +57,16 @@ button {
   outline: 4px solid #c25a00;
   outline-offset: 2px;
 }
+
+input[type="text"],
+select {
+  min-height: 48px;
+  font-size: 1rem;
+  padding: 0 0.5rem;
+  max-width: 100%;
+}
+
+input[type="file"] {
+  font-size: 1rem;
+  padding: 0.5rem 0;
+}
