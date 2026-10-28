@@ -1027,3 +1027,27 @@ alternatives.
 - **Alternatives considered:** Letting `seed` take a folder as an option (the environment setting is how every other part finds the data folder).
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 166. Task 17: the review test fixture needed a Batch
+- **Decision:** `tests/test_review.py` built its Pages with `batch=None`, but `pages.batch_id` is required (SPEC §3.3, set by every upload), so every test failed with a database error before reaching the new code. I fixed the **test**, by giving the fixture's pages a real `Batch`, and left the model alone. No test's expectations changed.
+- **Alternatives considered:** Making `Page.batch_id` optional, which would loosen the model for the sake of one fixture.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 167. Task 17: what "not chosen" means when confirming
+- **Decision:** `confirm_document()` treats a type or client of `None` as "keep what the document already has" (a document flagged only for too little text already has both). A type key that isn't in `DOCUMENT_TYPES` counts as no type and is refused with "Choose a type before filing", rather than falling back to the stored type. A client id that matches no client is refused with "That client isn't in your client list". The route (task 18) turns a blank dropdown into `None`.
+- **Alternatives considered:** Always requiring both to be posted; letting an unknown type key fall back to the stored one.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 168. Task 17: how typed values are read, and the wording of the refusals
+- **Decision:** Typed values are read before anything is saved: the date by the new `rules.dates.parse_date()` (the same three layouts as `find_dates`, but it must be exactly one date, with no extra words, and a date after today is allowed through so the caller can say something specific); the amount as pounds with an optional "£" and commas, no minus sign. A blank date or field means "clear it" (None). New wordings: `Couldn't read the date "banana". Write it like 14/03/2021`, "The date can't be after today", "Amount due must be a number like 120.00", "The PDF file is missing, so this document can't be filed". Values shown on the screen use the same shapes you type: the date as `14/03/2021` and the amount as `45.50` with no "£" sign.
+- **Alternatives considered:** Reusing `find_dates` on the typed text (it would accept "14/03/2021 and more" and silently ignore words); showing the amount as "£45.50".
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 169. Task 17: a refused confirmation changes nothing
+- **Decision:** `confirm_document()` works out the final values first, then sets them on the document, then runs the guard, checks the work PDF exists and files it. If any step refuses, the type, fields, date and client are put back as they were, and no StateChange is written. The caller commits only on success. Keep-until is not set here yet: task 21 adds it for confirming and for `change_type()` together.
+- **Alternatives considered:** Rolling the whole session back (the refused screen shows the person's choices from the form, and the route can't tell what else is in the session).
+- **Who chose:** Claude
+- **Why I agreed:**

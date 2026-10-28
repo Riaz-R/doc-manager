@@ -91,3 +91,17 @@ def find_dated_spans(text: str, today: date) -> list[tuple[int, int, date]]:
 def find_dates(text: str, today: date) -> list[date]:
     """Every real date in `text` that isn't after `today`, in the order they appear."""
     return [when for _, _, when in find_dated_spans(text, today)]
+
+
+def parse_date(text: str) -> date | None:
+    """A date a person typed, or None if `text` isn't exactly one date.
+
+    Reads the same three layouts as `find_dates`. Unlike `find_dates` it accepts a
+    date after today (the caller decides what to say about it) and refuses extra
+    words around the date.
+    """
+    text = text.strip()
+    spans = find_dated_spans(text, date.max)
+    if len(spans) == 1 and spans[0][0] == 0 and spans[0][1] == len(text):
+        return spans[0][2]
+    return None

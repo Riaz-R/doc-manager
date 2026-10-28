@@ -143,3 +143,16 @@ Client reference C-0043 with a copy for C-0042 at the head office, as agreed
 on the telephone last week and delivered to the address shown above.
 Amount due 300.00
 """
+
+# A document that reads as both an invoice and a letter, with the fields of each, for
+# the review tests. Invoice: INV-2222, 45.50, labelled date 14 Mar 2021. Letter: subject
+# "Year end paperwork", first date 5 May 2022.
+REVIEW_TEXT = """5 May 2022
+INVOICE
+Invoice number INV-2222
+Invoice date 14/03/2021
+Amount due 45.50
+Dear Mr Hartley,
+Re: Year end paperwork
+Yours sincerely
+"""
