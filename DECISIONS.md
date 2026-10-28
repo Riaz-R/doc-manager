@@ -1075,3 +1075,15 @@ alternatives.
 - **Alternatives considered:** Working out a preview from the posted form on every refusal.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 174. Task 19: the order of the blocking lines, and the lines that go together
+- **Decision:** `Box.paper_blockers()` lists lines in this fixed order: photos to sort, documents that need checking, documents that couldn't be read, documents that haven't been read yet, then "Nothing filed from this box yet". Each count line is plural when the count isn't 1 ("2 documents need checking", "2 documents haven't been read yet", "3 photos to sort"). "Nothing filed…" appears whenever the box has no documents, so a box with only unsorted photos shows both its photo line and that one (P7). A Grouped document with no error counts as "hasn't been read yet", even if it somehow has text, so no document can block the paper without a line saying why.
+- **Alternatives considered:** Showing only "Nothing filed…" when there are no documents; leaving a Grouped document that has text out of the lines.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 175. Task 19: how Home shows the answer
+- **Decision:** Each box on Home keeps its "N photos to sort" line. Under it, a box that can go shows a **Paper can go** badge; any other box shows its blocking lines as a list. `Box.paper_can_go()` is simply "no blockers", so the badge and the lines can never disagree. Both are worked out when Home is drawn, one box at a time, which is fine for a handful of boxes.
+- **Alternatives considered:** A single query counting everything for all boxes (faster, but harder to read and only worth it with hundreds of boxes).
+- **Who chose:** Claude
+- **Why I agreed:**

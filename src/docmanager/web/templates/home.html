@@ -18,6 +18,13 @@
   <li>
     <a href="{{ url_for('main.inbox', box_id=box.id) }}"><strong>{{ box.name }}</strong></a>:
     {{ inbox_count }} {{ "photo" if inbox_count == 1 else "photos" }} to sort
+    {% if box.paper_can_go() %}
+    <br><span class="badge paper-can-go">Paper can go</span>
+    {% else %}
+    <ul class="blockers">
+      {% for line in box.paper_blockers() %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>
