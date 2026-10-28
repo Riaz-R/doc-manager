@@ -925,3 +925,15 @@ alternatives.
 - **Alternatives considered:** Putting `count_words` in a separate small module; putting the text check before the "not read yet" check.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 149. Task 12: the shape of `rules/naming.py`, and the template stays in `config.py`
+- **Decision:** Three pure functions. `relative_path(client_ref=, client_name=, doc_type=, fields=, document_date=, template=None)` builds the path **under** the archive folder (as a `PurePosixPath`, so it is the same on every machine) from a `DocumentType` and its fields. `free_path(path, is_taken)` returns the path or the first free "name (2).pdf", "name (3).pdf" ..., where `is_taken` is a function the caller supplies (a test passes a set, filing will pass a check on the disk), so the clash rule needs no files to test. `clean_part(text)` makes one value safe. The template is read from `config.NAMING_TEMPLATE` each time it's needed (plan decision 2), so a test can change it. The caller will keep the chosen path in `pdf_path` and its last part (`path.name`, suffix included) in `filed_name`. Whether Windows treats "A.pdf" and "a.pdf" as the same file is not handled.
+- **Alternatives considered:** Putting the template constant in `rules/naming.py`, as SPEC 5.6 says; one function that also looks at the disk.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 150. Task 12: how unsafe characters, spaces and dots are cleaned
+- **Decision:** Each value (client reference, client name, type names, date, key) is cleaned **before** it goes into the template, so a "/" inside a client's name can never create a folder. Cleaning: runs of spaces, tabs and line breaks become one space (so a subject that wraps over two lines still makes a tidy name; this goes a little beyond N4); each of `/ \ : * ? " < > |` and control characters becomes "-"; dots and spaces are trimmed from **both** ends (trailing ones are refused by Windows, and a leading dot would hide the file or, as "..", climb a folder); if nothing is left, the value is "-". After the template is filled in, each folder name is trimmed of dots and spaces again, in case the template itself leaves one. Ordinary non-English letters are kept. A few control characters (like `\x1f`) count as spaces in Python, so they become a space, not a dash. Very long names and Windows' reserved names (CON, NUL ...) are not handled: the folder and file names always have other text around them.
+- **Alternatives considered:** Only trimming the end of a name, as N4 literally says; dropping unsafe characters instead of turning them into dashes.
+- **Who chose:** Claude
+- **Why I agreed:**
