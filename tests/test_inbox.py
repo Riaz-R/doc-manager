@@ -1,10 +1,13 @@
 import io
+import re
+from pathlib import Path
 
 import pytest
 from conftest import FIXED_NOW, photo_bytes
 from PIL import Image
 from sqlalchemy import select
 
+from docmanager import create_app
 from docmanager.models.box import Batch, Box
 from docmanager.models.page import Page
 
@@ -191,3 +194,28 @@ def test_a_missing_thumbnail_file_is_a_404_not_a_crash(client, db, data_dir):
     (data_dir / page.thumb_path).unlink()
 
     assert client.get(f"/pages/{page.id}/thumb").status_code == 404
+
+
+def test_every_image_on_the_inbox_page_loads_with_a_relative_data_folder(
+    tmp_path, monkeypatch, fake_ocr
+):
+    # The real app's data folder is the relative "data" (the default), not an
+    # absolute path like the other tests use.
+    monkeypatch.chdir(tmp_path)
+    app = create_app(
+        {"DATA_DIR": Path("data"), "CLOCK": lambda: FIXED_NOW, "OCR_RUNNER": fake_ocr}
+    )
+    client = app.test_client()
+    files = [(io.BytesIO(photo_bytes(f"P{n}")), f"IMG_{n:04d}.jpg") for n in (1, 2, 3)]
+    client.post(
+        "/upload", data={"choice": "new", "new_box_name": "Box 1", "photos": files}
+    )
+
+    page = client.get("/boxes/1/inbox").get_data(as_text=True)
+    sources = re.findall(r'<img[^>]*\ssrc="([^"]+)"', page)
+
+    assert len(sources) == 3
+    for source in sources:
+        response = client.get(source)
+        assert response.status_code == 200, source
+        assert response.mimetype == "image/jpeg", source

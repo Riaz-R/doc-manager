@@ -260,8 +260,11 @@ def thumbnail(page_id):
     if page is None:
         abort(404)
     # send_from_directory refuses any path that climbs out of the data folder,
-    # and answers 404 itself when the file is missing.
-    return send_from_directory(current_app.config["PATHS"].root, page.thumb_path)
+    # and answers 404 itself when the file is missing. The folder must be absolute:
+    # Flask reads a relative one as relative to the app's code, not to where we run.
+    return send_from_directory(
+        current_app.config["PATHS"].root.resolve(), page.thumb_path
+    )
 
 
 @bp.get("/upload")

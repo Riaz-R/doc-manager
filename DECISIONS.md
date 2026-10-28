@@ -1099,3 +1099,9 @@ alternatives.
 - **Alternatives considered:** Starting the server and fetching pages with curl (it would only repeat what the test client already does).
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 178. Fix: Inbox thumbnails showed only their alt text
+- **Decision:** The thumbnail route gave Flask's `send_from_directory` the data folder as it is configured. The real app's folder is the relative `data`, and Flask reads a relative folder as relative to the app's own code folder, so every thumbnail request was a 404 even though the files were in `data/thumbs`. The route now passes the folder's absolute path (`.resolve()`). The task 6 tests passed because they use absolute temporary folders; a new test in `tests/test_inbox.py` uses the relative `data` folder, fetches every `<img>` address on the inbox page and checks each is a 200 JPEG. Nothing else was changed.
+- **Alternatives considered:** Making `Paths` always absolute for the whole app (a wider change than the bug needs); serving the file with `send_file` (the same path logic would need repeating).
+- **Who chose:** Me
+- **Why I agreed:**
