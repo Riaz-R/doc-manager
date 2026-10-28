@@ -83,6 +83,10 @@ def make_page(session, now, state=None):
     return page
 
 
+# 20 words: the least text a document needs before it can be filed automatically.
+ENOUGH_TEXT = " ".join(f"word{n}" for n in range(20))
+
+
 def make_document(session, now, state=None, **overrides):
     """A document that satisfies every guard unless an override says otherwise."""
     box = make_box(session, now)
@@ -93,7 +97,7 @@ def make_document(session, now, state=None, **overrides):
         "box": box,
         "client": client,
         "doc_type": "invoice",
-        "ocr_text": "some words that were read from the photos",
+        "ocr_text": ENOUGH_TEXT,
         "keep_until": date(2026, 10, 26),  # the day before the fixed "today"
     }
     fields.update(overrides)
@@ -212,11 +216,89 @@ class TestFilingGuards:
         assert document.state == DocState.FILED
 
 
-def test_read_text_that_is_empty_still_counts_as_read(session, now):
-    # "Very little text" is a separate check (Task 11); the guard only asks whether OCR ran.
-    document = make_document(session, now, DocState.GROUPED, ocr_text="")
-    document.apply("file", now=now)
-    assert document.state == DocState.FILED
+LOW_TEXT = (
+    "Very little text was read. Check the photos are clear before shredding the paper."
+)
+
+
+class TestLowTextGuard:
+    """Task 11: the file guard also refuses a document with too little text."""
+
+    def test_file_refuses_a_document_with_fewer_than_20_words(self, session, now):
+        document = make_document(
+            session, now, DocState.GROUPED, ocr_text=" ".join(["word"] * 19)
+        )
+
+        with pytest.raises(InvalidTransition) as problem:
+            document.apply("file", now=now)
+
+        assert str(problem.value) == LOW_TEXT
+        assert document.state == DocState.GROUPED
+
+    def test_file_accepts_exactly_20_words(self, session, now):
+        document = make_document(
+            session, now, DocState.GROUPED, ocr_text=" ".join(["word"] * 20)
+        )
+        document.apply("file", now=now)
+        assert document.state == DocState.FILED
+
+    def test_empty_text_counts_as_read_but_is_too_little(self, session, now):
+        document = make_document(session, now, DocState.GROUPED, ocr_text="")
+
+        with pytest.raises(InvalidTransition) as problem:
+            document.apply("file", now=now)
+
+        assert str(problem.value) == LOW_TEXT  # not "hasn't been read yet"
+
+    def test_pieces_without_a_letter_or_digit_are_not_words(self, session, now):
+        document = make_document(
+            session, now, DocState.GROUPED, ocr_text=" ".join(["---"] * 30)
+        )
+
+        with pytest.raises(InvalidTransition) as problem:
+            document.apply("file", now=now)
+
+        assert str(problem.value) == LOW_TEXT
+
+    def test_the_text_problem_is_reported_after_not_read_and_before_type_and_client(
+        self, session, now
+    ):
+        unread = make_document(
+            session, now, DocState.GROUPED, ocr_text=None, doc_type=None, client=None
+        )
+        little = make_document(
+            session, now, DocState.GROUPED, ocr_text="x", doc_type=None, client=None
+        )
+
+        with pytest.raises(InvalidTransition) as first:
+            unread.apply("file", now=now)
+        with pytest.raises(InvalidTransition) as second:
+            little.apply("file", now=now)
+
+        assert str(first.value) == "This document hasn't been read yet"
+        assert str(second.value) == LOW_TEXT
+
+    def test_confirming_in_review_does_not_need_the_text(self, session, now):
+        document = make_document(
+            session, now, DocState.NEEDS_REVIEW, ocr_text="only a few words"
+        )
+        document.apply("confirm", now=now)
+        assert document.state == DocState.FILED
+
+    def test_confirming_with_empty_text_is_fine_but_unread_is_not(self, session, now):
+        document = make_document(session, now, DocState.NEEDS_REVIEW, ocr_text="")
+        document.apply("confirm", now=now)
+        assert document.state == DocState.FILED
+
+        unread = make_document(session, now, DocState.NEEDS_REVIEW, ocr_text=None)
+        with pytest.raises(InvalidTransition) as problem:
+            unread.apply("confirm", now=now)
+        assert str(problem.value) == "This document hasn't been read yet"
+
+    def test_flagging_does_not_need_the_text_either(self, session, now):
+        document = make_document(session, now, DocState.GROUPED, ocr_text="few words")
+        document.apply("flag", now=now)
+        assert document.state == DocState.NEEDS_REVIEW
 
 
 def test_flag_guard_refuses_an_unread_document(session, now):

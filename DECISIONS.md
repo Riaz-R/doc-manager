@@ -907,3 +907,21 @@ alternatives.
 - **Alternatives considered:** Taking any date near the label; reading two-digit years.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 146. Task 11: what `classify()` returns, and how the reasons are worded and ordered
+- **Decision:** `classify(text, clients, today)` returns a `Classification`: `reasons` (empty when the document can be filed automatically, with a `passed` property), `doc_type` (a key or `None`), `type_score` and `runner_up_score` (kept even when no type is chosen, to explain the decision, as SPEC 3.4 says), `client` (the matching client object or `None`), `fields` (the type's fields **without** the date) and `document_date`. All failing checks add a reason, always in the order text, type, client. When the type check fails, no fields or date are read (review re-reads them through `change_type`). `clients` only needs a `ref` and a `name` from each client, so the rules stay free of the database. Reason wording: low text, C2 and C3 are the SPEC's; where only one type scored above 0 the candidates list has one name ("Not sure what type this is (Invoice?)"); and a score above 0 but under the minimum also gets the "Not sure" wording, not "Couldn't tell". A tie between types keeps the registry's order (Invoice before Letter).
+- **Alternatives considered:** Returning the date inside `fields`; stopping at the first failed check.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 147. Task 11: how the client is found
+- **Decision:** A client reference is `C-` and four digits, in any case ("c-0042" counts), and not part of a longer word or number. Exactly one distinct reference: that client, or "Client C-0099 isn't in your client list" if the register doesn't have it. The same reference written twice is one reference. Two or more different references: "More than one client reference found: C-0043, C-0042" (decision 11's wording, with the references in the order they appear), even if all are known. **A reference settles it:** if any reference is in the text, names are not looked at, so an unknown reference is not rescued by a name. With no reference, a client's exact name is searched as a whole phrase, ignoring case, with any run of spaces or line breaks allowed inside it; exactly one match gives that client, none gives "Couldn't tell which client this is for", and two or more give "More than one client matched: Smith Ltd, J Smith & Co" with the names in the order they appear in the text. A known limit: a client named "Smith" and another named "Smith Ltd" would both match the text "Smith Ltd" and be reported as two.
+- **Alternatives considered:** Listing names in register order; letting a unique name win over an unknown reference.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 148. Task 11: the file guard checks the text, the confirm guard doesn't, and `count_words` lives in `rules/classify.py`
+- **Decision:** `Document.guard_file` now refuses with the low-text reason when `ocr_text` has fewer than `MIN_OCR_WORDS` words, so the lifecycle itself enforces what Check 1 reports. The guards still report only the first problem; the order for filing is now: not read yet, too little text, no type, no client (this adds one step to decision 123). `guard_confirm` does not check the text, because a person has looked at the document in review (decision 18), and `guard_flag` still only asks whether the document was read. The empty string still counts as read, so it gets the low-text reason, not "hasn't been read yet". `rules/classify.py` imports the document types only inside `classify()`, because the model package imports this module for the guards and a top-level import would go round in a circle. The shared reason text is `LOW_TEXT_REASON`. In `test_lifecycles.py`, the default made-up document text is now 20 words, and the old "empty text counts as read" test became a group of low-text tests.
+- **Alternatives considered:** Putting `count_words` in a separate small module; putting the text check before the "not read yet" check.
+- **Who chose:** Claude
+- **Why I agreed:**

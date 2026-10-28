@@ -80,6 +80,7 @@ A. Whitcombe
 
 # Scores Invoice 7 ("invoice" 4 + "amount due" 3) and Letter 5 ("dear" 3 + "re:" 2).
 MIXED_INVOICE_7_LETTER_5 = """Dear Mr Hartley,
+Our ref C-0042
 Re: the paperwork for the bakery that we talked about on the telephone.
 Please find below the invoice and the amount due for the work that was done
 in the shop last week.
@@ -89,4 +90,56 @@ in the shop last week.
 NO_KEYWORDS = """The kettle in the back office needs descaling and the shelf above the
 sink is loose. Bring tea bags and biscuits on Friday, and put the ladder back in
 the shed when you have finished with it.
+"""
+
+# SPEC C4: no reference, but the names of two clients.
+INVOICE_TWO_CLIENT_NAMES = """INVOICE
+Invoice number INV-5000
+Invoice date 14/03/2021
+Work done for Smith Ltd at the shop, with a copy sent to J Smith & Co at
+their head office, as agreed on the telephone last week.
+Amount due 300.00
+"""
+
+# SPEC C5: a reference that isn't in the register.
+INVOICE_UNKNOWN_REF = """INVOICE
+Invoice number INV-6000
+Invoice date 14/03/2021
+Client reference C-0099
+Work done for the shop as agreed on the telephone last week and delivered
+to the address shown above.
+Amount due 300.00
+"""
+
+# SPEC C6: a confident type and client, but no date anywhere.
+INVOICE_NO_DATE = """INVOICE
+Brightwell Flour Mills
+Invoice number INV-7000
+Client reference C-0042
+Hollybrook Bakery Ltd, 12 Mill Lane, Daleford
+Flour, 16kg sacks x 6 and yeast, 500g tubs x 4 delivered to the bakery.
+Amount due 100.00
+"""
+
+# SPEC C11: a confident type and client, but only 11 words (the one text under 20).
+INVOICE_ELEVEN_WORDS = (
+    "INVOICE Invoice number INV-1043 Invoice date 14/03/2021 Amount due 120.00 C-0042"
+)
+
+# Names only, no reference, for the name-matching rules.
+INVOICE_NAME_ONLY = """INVOICE
+Invoice number INV-8000
+Invoice date 14/03/2021
+Work done for HOLLYBROOK BAKERY LTD at their shop in Daleford, as agreed on
+the telephone last week and delivered to the address shown above.
+Amount due 300.00
+"""
+
+# Two references.
+INVOICE_TWO_REFS = """INVOICE
+Invoice number INV-9000
+Invoice date 14/03/2021
+Client reference C-0043 with a copy for C-0042 at the head office, as agreed
+on the telephone last week and delivered to the address shown above.
+Amount due 300.00
 """

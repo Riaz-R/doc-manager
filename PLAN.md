@@ -16,7 +16,7 @@
 
 **Sitting (c) OCR, classification, filing**
 - [x] Task 10: Document types and dates
-- [ ] Task 11: Classification, with the low-text check
+- [x] Task 11: Classification, with the low-text check
 - [ ] Task 12: Naming rules
 - [ ] Task 13: OCR runner and start-up check
 - [ ] Task 14: Read and file on Make document, with Retry

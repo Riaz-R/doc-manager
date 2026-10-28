@@ -4,12 +4,14 @@ from enum import StrEnum
 from sqlalchemy import JSON, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from docmanager import config
 from docmanager.db import Base
 from docmanager.lifecycle import Lifecycle, Stateful
 from docmanager.models.box import Box
 from docmanager.models.client import Client
 from docmanager.models.document_types import DOCUMENT_TYPES, DocumentType
 from docmanager.models.page import Page
+from docmanager.rules.classify import LOW_TEXT_REASON, count_words
 from docmanager.rules.dates import format_date
 
 
@@ -111,9 +113,11 @@ class Document(Stateful, Base):
 
     # Guards. Each returns a plain-words reason to refuse, or None to allow.
 
-    def _filing_problem(self) -> str | None:
+    def _filing_problem(self, *, needs_enough_text: bool) -> str | None:
         if self.ocr_text is None:
             return "This document hasn't been read yet"
+        if needs_enough_text and count_words(self.ocr_text) < config.MIN_OCR_WORDS:
+            return LOW_TEXT_REASON
         if self.doc_type is None:
             return "Choose a type before filing"
         if self.client_id is None and self.client is None:
@@ -121,10 +125,12 @@ class Document(Stateful, Base):
         return None
 
     def guard_file(self, now: datetime) -> str | None:
-        return self._filing_problem()
+        # Filing happens without a person looking, so the text must be enough to trust.
+        return self._filing_problem(needs_enough_text=True)
 
     def guard_confirm(self, now: datetime) -> str | None:
-        return self._filing_problem()
+        # A person has looked at the document in review, so little text is fine.
+        return self._filing_problem(needs_enough_text=False)
 
     def guard_flag(self, now: datetime) -> str | None:
         if self.ocr_text is None:
