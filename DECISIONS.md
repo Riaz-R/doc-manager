@@ -889,3 +889,21 @@ alternatives.
 - **Alternatives considered:** A separate script for the demo photos; leaving `main()` unchanged and adding a second entry point in `pyproject.toml`.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 143. Task 10: the keyword weights
+- **Decision:** Invoice: "invoice" 4, "invoice number" 3, "invoice date" 2, "amount due" 3, "balance due" 2, "vat" 1, "total" 1. Letter: "dear" 3, "yours sincerely" 3, "yours faithfully" 3, "kind regards" 2, "best regards" 2, "re:" 2, "enclosed" 1. A keyword counts once, whatever its case, as a whole word or phrase (decision 10), and a phrase may be split by spaces or line breaks. A keyword that ends in a colon ("re:") has no word edge after it, so "Re:Subject" still counts. With the thresholds of 6 and 3 this gives: the SPEC C1 text Invoice 12 / Letter 0; the demo invoice 12 / 0; the demo letter 0 / 9; the demo notes 0 / 0; and a made-up mixed text of exactly Invoice 7 / Letter 5 for C2. A test scores the demo documents so a later change to the weights can't quietly break the demo.
+- **Alternatives considered:** Higher weights for "invoice" alone (a letter that merely mentions an invoice would then pass as one); counting every occurrence.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 144. Task 10: what `extract()` returns, and when a field is empty
+- **Decision:** `extract(text, today)` returns a dict that holds the type's fields **and** a `"document_date"` key (a `date` or `None`), as SPEC 3.4 describes. Every key is always there, with `None` when it wasn't found, so the review screen can show an empty box for each field. The caller will move `document_date` into its own column, because a `date` can't be stored in the JSON `fields` column. Invoice number: the token after "Invoice number / no. / #" that contains a digit (so "Invoice number is shown below" gives none). Amount: the number after "Amount due", in pence, worked out exactly with `Decimal` (not floating point); the `£` is optional and thousands commas are fine, which settles the question decision 139 raised. Letter subject: the text of the first line that starts "Re:". `filename_key` for a letter is the first 40 characters of the subject with the end trimmed, or "letter"; for an invoice it is the number or "no number". Cleaning unsafe characters out of a key is Task 12's job.
+- **Alternatives considered:** Returning a small object with two parts; leaving missing keys out.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 145. Task 10: how dates are read, and which date an invoice gets
+- **Decision:** `find_dates(text, today)` reads `14/03/2021` (day first), `14 March 2021` (full or short month names in any case, `Sept` too, and 1st/2nd/3rd/4th) and `2021-03-14`, and gives the dates in the order they appear. Two-digit years aren't read. A date that doesn't exist (31/02/2021) is skipped, and a date after `today` is ignored as a misread; today itself is allowed. A date glued to digits or slashes ("114/03/2021") is not taken. `find_dated_spans` also gives each date's position, which is how an invoice finds its labelled date: the date must come straight after "Invoice date" or "Date of invoice" (only spaces, a colon, a dash or a line break between). If that date is missing or is in the future, the invoice uses the first date in the text. A letter uses the first date. `keep_until()` waits for Task 21, as the plan says.
+- **Alternatives considered:** Taking any date near the label; reading two-digit years.
+- **Who chose:** Claude
+- **Why I agreed:**

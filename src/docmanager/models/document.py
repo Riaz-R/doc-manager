@@ -8,6 +8,7 @@ from docmanager.db import Base
 from docmanager.lifecycle import Lifecycle, Stateful
 from docmanager.models.box import Box
 from docmanager.models.client import Client
+from docmanager.models.document_types import DOCUMENT_TYPES, DocumentType
 from docmanager.models.page import Page
 from docmanager.rules.dates import format_date
 
@@ -85,6 +86,11 @@ class Document(Stateful, Base):
     pages: Mapped[list[Page]] = relationship(
         back_populates="document", order_by=Page.position
     )
+
+    @property
+    def type(self) -> DocumentType | None:
+        """The DocumentType this document holds, or None while it is "Unclassified"."""
+        return DOCUMENT_TYPES.get(self.doc_type)
 
     @property
     def state_label(self) -> str:

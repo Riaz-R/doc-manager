@@ -15,7 +15,7 @@
 - [x] Task 9: Demo photo generator
 
 **Sitting (c) OCR, classification, filing**
-- [ ] Task 10: Document types and dates
+- [x] Task 10: Document types and dates
 - [ ] Task 11: Classification, with the low-text check
 - [ ] Task 12: Naming rules
 - [ ] Task 13: OCR runner and start-up check
