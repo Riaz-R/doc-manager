@@ -266,6 +266,34 @@ def confirm_document(
     return ReadResult(document, "filed")
 
 
+def documents_needing_check(session: Session) -> list[Document]:
+    """Every document in Needs checking, oldest first."""
+    return list(
+        session.scalars(
+            select(Document)
+            .where(Document._state == DocState.NEEDS_REVIEW.value)
+            .order_by(Document.created_at, Document.id)
+        )
+    )
+
+
+def planned_filename(document: Document, paths: Paths) -> str | None:
+    """The filename the document would be filed under now, or None without a type and client."""
+    if document.type is None or document.client is None:
+        return None
+    path = free_path(
+        relative_path(
+            client_ref=document.client.ref,
+            client_name=document.client.name,
+            doc_type=document.type,
+            fields=document.fields,
+            document_date=document.document_date,
+        ),
+        lambda candidate: (paths.archive / candidate).exists(),
+    )
+    return path.name
+
+
 def _changed(name: str, posted: dict[str, str], shown: dict[str, str]) -> bool:
     """Did the person type something different from what the screen showed?"""
     return name in posted and posted[name].strip() != shown.get(name, "").strip()

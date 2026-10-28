@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Needs checking{% endblock %}
+{% block content %}
+<h1>Needs checking</h1>
+{% if documents %}
+<p>Oldest first. Open a document to look at it, choose what it is and file it.</p>
+<ul class="checks">
+  {% for document in documents %}
+  {% set count = document.pages|length %}
+  <li>
+    <strong>Document {{ document.id }}</strong>
+    ({{ document.box.name }}, {{ count }} {{ "page" if count == 1 else "pages" }})
+    <ul>
+      {% for reason in document.review_reasons %}<li>{{ reason }}</li>{% endfor %}
+    </ul>
+    <a class="button" href="{{ url_for('main.check_document', document_id=document.id) }}">Check document {{ document.id }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Nothing needs checking.</p>
+{% endif %}
+{% endblock %}

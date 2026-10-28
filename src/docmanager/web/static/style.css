@@ -156,3 +156,19 @@ dd {
   height: 80vh;
   border: 2px solid #111;
 }
+
+/* Check document: the PDF beside the form, stacked on a narrow screen or at high zoom. */
+.check {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1.5rem;
+}
+
+.check input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.checks li {
+  margin-bottom: 1rem;
+}

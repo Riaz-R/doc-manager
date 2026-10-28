@@ -24,6 +24,10 @@
   {% endfor %}
 </dl>
 
+{% if document.needs_checking %}
+<p><a class="button" href="{{ url_for('main.check_document', document_id=document.id) }}">Check this document</a></p>
+{% endif %}
+
 {% for label, url in buttons %}
 <form method="post" action="{{ url }}">
   <button type="submit">{{ label }}</button>

@@ -25,7 +25,7 @@
 
 **Sitting (d) Review, Paper can go**
 - [x] Task 17: Confirming a document in review
-- [ ] Task 18: Needs checking and Check document screens
+- [x] Task 18: Needs checking and Check document screens
 - [ ] Task 19: Paper can go
 - [ ] Task 20: End-to-end OCR test and demo-line check
 

@@ -15,8 +15,11 @@ from flask import (
 from sqlalchemy import select
 
 from docmanager.db import get_session
+from docmanager.errors import UserFacingError
 from docmanager.models.box import Box
+from docmanager.models.client import Client
 from docmanager.models.document import DocState, Document
+from docmanager.models.document_types import DOCUMENT_TYPES
 from docmanager.models.page import Page
 from docmanager.services import filing, grouping, upload
 
@@ -35,6 +38,7 @@ def home():
         "home.html",
         boxes=upload.boxes_with_inbox_counts(session),
         bin_count=grouping.bin_count(session),
+        check_count=len(filing.documents_needing_check(session)),
     )
 
 
@@ -96,6 +100,10 @@ def inbox(box_id):
         box=box,
         pages=box.inbox_pages(),
         unread=box.unread_documents(),
+        # "Later" brings the page back with ?later=1, which hides the banner this once.
+        check_count=0
+        if request.args.get("later")
+        else len(filing.documents_needing_check(get_session())),
     )
 
 
@@ -114,6 +122,81 @@ def make_document(box_id):
     )
     _read_and_flash(made.document)  # this commits the new document first
     return redirect(url_for("main.inbox", box_id=box.id))
+
+
+@bp.get("/needs-checking")
+def needs_checking():
+    return render_template(
+        "needs_checking.html", documents=filing.documents_needing_check(get_session())
+    )
+
+
+@bp.get("/documents/<int:document_id>/check")
+def check_document(document_id):
+    document = _document_or_404(document_id)
+    if document.state != DocState.NEEDS_REVIEW:
+        flash("This document isn't waiting to be checked")
+        return redirect(url_for("main.document_page", document_id=document.id))
+    shown = filing.shown_values(document)
+    return _check_screen(
+        document,
+        shown=shown,
+        values=shown,
+        type_key=document.doc_type,
+        client_id=document.client_id,
+    )
+
+
+@bp.post("/documents/<int:document_id>/check")
+def confirm_check(document_id):
+    session = get_session()
+    document = _document_or_404(document_id)
+    names = filing.shown_values(document).keys()
+    # What the form showed when it was drawn, and what the person has now.
+    shown = {name: request.form.get(f"shown_{name}", "") for name in names}
+    posted = {name: request.form[name] for name in names if name in request.form}
+    type_key = request.form.get("type") or None
+    raw_client = request.form.get("client", "")
+    client_id = int(raw_client) if raw_client.isdigit() else None
+    try:
+        result = filing.confirm_document(
+            session,
+            document,
+            type_key=type_key,
+            client_id=client_id,
+            posted=posted,
+            shown=shown,
+            paths=current_app.config["PATHS"],
+            now=current_app.config["CLOCK"](),
+        )
+    except UserFacingError as refusal:
+        session.rollback()
+        if document.state != DocState.NEEDS_REVIEW:
+            flash(str(refusal))
+            return redirect(url_for("main.document_page", document_id=document_id))
+        # Show the form again, with the person's choices kept (C10).
+        flash(str(refusal))
+        return _check_screen(
+            document, shown=shown, values=posted, type_key=type_key, client_id=client_id
+        )
+    session.commit()
+    flash(result.message())
+    return redirect(url_for("main.needs_checking"))
+
+
+def _check_screen(document, *, shown, values, type_key, client_id):
+    session = get_session()
+    return render_template(
+        "check.html",
+        document=document,
+        types=list(DOCUMENT_TYPES.values()),
+        clients=session.scalars(select(Client).order_by(Client.ref)).all(),
+        selected_type=type_key,
+        selected_client=client_id,
+        shown=shown,
+        values=values,
+        filename=filing.planned_filename(document, current_app.config["PATHS"]),
+    )
 
 
 @bp.post("/documents/<int:document_id>/retry")

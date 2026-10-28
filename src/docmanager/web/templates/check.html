@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Check document {{ document.id }}{% endblock %}
+{% block content %}
+<h1>Check document {{ document.id }}</h1>
+<div class="check">
+  <div class="check-pdf">
+    {% if document.pdf_path %}
+    <iframe src="{{ url_for('main.document_pdf', document_id=document.id) }}"
+            title="The document as a PDF" class="pdf"></iframe>
+    {% else %}
+    <p>There is no PDF for this document yet.</p>
+    {% endif %}
+  </div>
+  <div class="check-form">
+    <h2>Why it needs checking</h2>
+    <ul>
+      {% for reason in document.review_reasons %}<li>{{ reason }}</li>{% endfor %}
+    </ul>
+    <form method="post" action="{{ url_for('main.confirm_check', document_id=document.id) }}">
+      <p>
+        <label for="type">Type</label><br>
+        <select name="type" id="type">
+          <option value="">Choose a type</option>
+          {% for t in types %}
+          <option value="{{ t.key }}"{% if t.key == selected_type %} selected{% endif %}>{{ t.label }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label for="client">Client</label><br>
+        <select name="client" id="client">
+          <option value="">Choose a client</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}"{% if c.id == selected_client %} selected{% endif %}>{{ c.ref }} {{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label for="date">Date (like 14/03/2021)</label><br>
+        <input type="text" name="date" value="{{ values.get('date', '') }}" id="date">
+      </p>
+      <p>
+        <label for="invoice_number">Invoice: invoice number</label><br>
+        <input type="text" name="invoice_number" value="{{ values.get('invoice_number', '') }}" id="invoice_number">
+      </p>
+      <p>
+        <label for="amount_pence">Invoice: amount due (like 120.00)</label><br>
+        <input type="text" name="amount_pence" value="{{ values.get('amount_pence', '') }}" id="amount_pence">
+      </p>
+      <p>
+        <label for="subject">Letter: subject</label><br>
+        <input type="text" name="subject" value="{{ values.get('subject', '') }}" id="subject">
+      </p>
+      <p>Only the fields for the type you choose are used. If you change the
+      type, any field you leave alone is read again from the document.</p>
+      {% for name, value in shown.items() %}
+      <input type="hidden" name="shown_{{ name }}" value="{{ value }}">
+      {% endfor %}
+      <p>
+        {% if filename %}
+        The filename will be: <strong>{{ filename }}</strong>
+        {% else %}
+        Choose a type and a client to see the filename.
+        {% endif %}
+      </p>
+      <p><button type="submit">File it</button></p>
+    </form>
+    <p><a href="{{ url_for('main.needs_checking') }}">Back to the list</a></p>
+  </div>
+</div>
+{% endblock %}

@@ -7,6 +7,7 @@
 </p>
 
 <p>
+  <a class="tile" href="{{ url_for('main.needs_checking') }}">Needs checking: {{ check_count }} {{ "document" if check_count == 1 else "documents" }}</a>
   <a class="tile" href="{{ url_for('main.bin_screen') }}">Bin: {{ bin_count }} {{ "item" if bin_count == 1 else "items" }}</a>
 </p>
 

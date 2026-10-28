@@ -3,6 +3,14 @@
 {% block content %}
 <h1>Inbox: {{ box.name }}</h1>
 
+{% if check_count %}
+<p class="flash">
+  {{ check_count }} {{ "document needs" if check_count == 1 else "documents need" }} checking &ndash;
+  <a href="{{ url_for('main.needs_checking') }}">Check now</a> /
+  <a href="{{ url_for('main.inbox', box_id=box.id, later=1) }}">Later</a>
+</p>
+{% endif %}
+
 {% if unread %}
 <section class="unread">
   <h2>Documents not read yet</h2>

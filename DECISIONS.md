@@ -1051,3 +1051,27 @@ alternatives.
 - **Alternatives considered:** Rolling the whole session back (the refused screen shows the person's choices from the form, and the route can't tell what else is in the session).
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 170. Task 18: the inbox banner and the Home tile count every box
+- **Decision:** "N documents need checking" on the inbox, and the "Needs checking: N documents" tile on Home, both count all documents in Needs checking, in every box, the same as the Needs checking list they link to. **Later** is a link back to the same inbox with `?later=1` added, which hides the banner for that one visit (plan decision 13); the next ordinary visit shows it again. The banner is not shown when the count is 0.
+- **Alternatives considered:** Counting only this box's documents (then "Check now" would open a list with a different number in it).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 171. Task 18: a link to the Check screen, not an `ACTION_BUTTONS` entry
+- **Decision:** Decision 161 expected the File it button to be added to `routes.ACTION_BUTTONS`. Those entries are drawn as buttons that **post** straight away, and a post to the Check screen files the document with whatever it already holds, without a person looking. So the Document page instead shows a plain link, "Check this document", while the document is in Needs checking. `ACTION_BUTTONS` stays empty until task 22.
+- **Alternatives considered:** An `ACTION_BUTTONS` entry pointing at the Check screen (it would be a button that does the wrong thing).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 172. Task 18: what the Check screen does after each outcome
+- **Decision:** The screen is at `/documents/<id>/check` (GET shows it, POST is **File it**). A blank type or client dropdown means "keep what the document already has". After filing, the person goes to the Needs checking list with the "Filed as …" message, so they can carry straight on to the next one. A refusal shows the same form again (status 200) with the message in the banner, the person's type, client and typed values kept, and the hidden "shown" values left as they were first drawn, so the next press of File it still knows what was changed. A document that is no longer in Needs checking (already filed in another tab, or a crafted post) sends the person to its Document page with the refusal, and its Check screen does the same.
+- **Alternatives considered:** Redirecting back to the form after a refusal (the typed values would be lost); going to the document's page after filing.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 173. Task 18: the filename shown on the Check screen
+- **Decision:** The screen shows the filename the document would get from what it holds **now** (its stored type, client, fields and date, with a " (2)" suffix if the name is taken), or "Choose a type and a client to see the filename" if it has no type or no client yet. It does not change as you pick things in the dropdowns, because that would need JavaScript (SPEC §8). The real name is shown in the "Filed as …" message afterwards.
+- **Alternatives considered:** Working out a preview from the posted form on every refusal.
+- **Who chose:** Claude
+- **Why I agreed:**

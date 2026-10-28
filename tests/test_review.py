@@ -1,9 +1,10 @@
 import html
-from datetime import date
+import io
+from datetime import date, timedelta
 
 import pytest
 import texts
-from conftest import FIXED_NOW
+from conftest import FIXED_NOW, photo_bytes
 from sqlalchemy import select
 
 from docmanager.errors import UserFacingError
@@ -599,3 +600,392 @@ def test_the_result_message_for_a_confirmed_document(
     assert result.outcome == "filed"
     assert html.unescape(result.message()).startswith("Filed as ")
     assert db.scalars(select(Page).where(Page.document_id == 17)).all()
+
+
+# --- The screens (task 18) ---
+
+
+def page_text(response):
+    return html.unescape(response.get_data(as_text=True))
+
+
+def form_for(document, **edits):
+    """What the Check screen posts: the shown values in hidden fields, then the edits."""
+    shown = filing.shown_values(document)
+    form = {f"shown_{name}": value for name, value in shown.items()}
+    form.update(shown)
+    form.update(edits)
+    return form
+
+
+def test_the_needs_checking_list_is_oldest_first_with_reasons(client, db, make_flagged):
+    newer = make_flagged(doc_id=17)
+    older = make_flagged(doc_id=18)
+    older.created_at = FIXED_NOW - timedelta(days=1)
+    older.review_reasons = [
+        "Not sure what type this is (Invoice or Letter?)",
+        "Second reason",
+    ]
+    db.commit()
+
+    body = page_text(client.get("/needs-checking"))
+
+    assert body.index("Document 18") < body.index("Document 17")
+    assert "Not sure what type this is (Invoice or Letter?)" in body
+    assert "Second reason" in body
+    assert "Couldn't tell what type this is" in body
+    assert f"/documents/{newer.id}/check" in body
+    assert f"/documents/{older.id}/check" in body
+
+
+def test_the_needs_checking_list_leaves_out_documents_in_other_states(
+    client, db, make_flagged
+):
+    filed = make_flagged(doc_id=17)
+    filed._state = DocState.FILED.value
+    make_flagged(doc_id=18)
+    db.commit()
+
+    body = page_text(client.get("/needs-checking"))
+
+    assert "Document 18" in body
+    assert "Document 17" not in body
+
+
+def test_an_empty_needs_checking_list_says_so(client):
+    assert "Nothing needs checking" in page_text(client.get("/needs-checking"))
+
+
+# C7: checking is never forced
+
+
+def upload_photos(client, box, count):
+    files = [
+        (io.BytesIO(photo_bytes(f"P{n}")), f"IMG_{n:04d}.jpg")
+        for n in range(1, count + 1)
+    ]
+    client.post(
+        "/upload", data={"choice": "existing", "box": str(box.id), "photos": files}
+    )
+
+
+def test_c7_grouping_is_not_blocked_by_a_document_that_needs_checking(
+    client, db, fake_ocr, hollybrook, make_flagged
+):
+    make_flagged()
+    box = db.scalars(select(Box)).one()
+    upload_photos(client, box, 2)
+    fake_ocr.fail = None
+    fake_ocr.text = texts.INVOICE_C1
+    first, last = (page.id for _, page in box.inbox_pages())
+
+    response = client.post(
+        f"/boxes/{box.id}/make-document",
+        data={"first": str(first), "last": str(last)},
+        follow_redirects=True,
+    )
+
+    assert "Filed as 2021-03-14 Invoice INV-1043" in page_text(response)
+
+
+def test_c7_the_inbox_banner_shows_the_count_with_check_now_and_later(
+    client, db, make_flagged
+):
+    make_flagged(doc_id=17)
+    make_flagged(doc_id=18)
+    box = db.scalars(select(Box)).one()
+
+    body = page_text(client.get(f"/boxes/{box.id}/inbox"))
+
+    assert "2 documents need checking" in body
+    assert 'href="/needs-checking"' in body
+    assert "Check now" in body
+    assert "Later" in body
+
+
+def test_c7_the_banner_says_1_document_needs_checking(client, db, make_flagged):
+    make_flagged()
+    box = db.scalars(select(Box)).one()
+
+    assert "1 document needs checking" in page_text(
+        client.get(f"/boxes/{box.id}/inbox")
+    )
+
+
+def test_c7_later_hides_the_banner_for_that_visit(client, db, make_flagged):
+    make_flagged()
+    box = db.scalars(select(Box)).one()
+    body = page_text(client.get(f"/boxes/{box.id}/inbox"))
+    assert f"/boxes/{box.id}/inbox?later=1" in body
+
+    later = page_text(client.get(f"/boxes/{box.id}/inbox?later=1"))
+
+    assert "need checking" not in later and "needs checking" not in later
+    # The next ordinary visit shows it again.
+    assert "1 document needs checking" in page_text(
+        client.get(f"/boxes/{box.id}/inbox")
+    )
+
+
+def test_c7_no_banner_when_nothing_needs_checking(client, db, hollybrook):
+    db.add(Box(name="Box 1", created_at=FIXED_NOW))
+    db.commit()
+    box = db.scalars(select(Box)).one()
+
+    assert "need checking" not in page_text(client.get(f"/boxes/{box.id}/inbox"))
+
+
+def test_c7_the_home_tile_shows_the_count(client, db, make_flagged):
+    make_flagged(doc_id=17)
+    make_flagged(doc_id=18)
+
+    body = page_text(client.get("/"))
+
+    assert "Needs checking: 2 documents" in body
+    assert 'href="/needs-checking"' in body
+
+
+def test_c7_the_home_tile_with_nothing_to_check(client):
+    assert "Needs checking: 0 documents" in page_text(client.get("/"))
+
+
+# The Check document screen
+
+
+def test_the_check_screen_shows_the_pdf_reasons_and_the_choices(
+    client, db, hollybrook, other_client, make_flagged
+):
+    document = make_flagged()
+    document.review_reasons = ["Couldn't tell what type this is", "Second reason"]
+    db.commit()
+
+    body = page_text(client.get("/documents/17/check"))
+
+    assert '<iframe src="/documents/17/pdf"' in body
+    assert "Couldn't tell what type this is" in body and "Second reason" in body
+    assert '<option value="invoice"' in body and ">Invoice</option>" in body
+    assert '<option value="letter"' in body and ">Letter</option>" in body
+    assert f'<option value="{hollybrook.id}"' in body
+    assert "C-0042 Hollybrook Bakery Ltd" in body
+    assert "C-0007 Ashgrove Dental Practice" in body
+    assert 'name="date"' in body
+    for name in ("invoice_number", "amount_pence", "subject"):
+        assert f'name="{name}"' in body
+    assert "File it" in body
+
+
+def test_the_check_screen_carries_the_shown_values_in_hidden_inputs(
+    client, hollybrook, make_flagged
+):
+    make_flagged(
+        doc_type="invoice",
+        client=hollybrook,
+        fields={"invoice_number": "INV-2222", "amount_pence": 4550},
+        document_date=date(2021, 3, 14),
+    )
+
+    body = page_text(client.get("/documents/17/check"))
+
+    assert '<input type="hidden" name="shown_date" value="14/03/2021">' in body
+    assert '<input type="hidden" name="shown_invoice_number" value="INV-2222">' in body
+    assert '<input type="hidden" name="shown_amount_pence" value="45.50">' in body
+    assert '<input type="hidden" name="shown_subject" value="">' in body
+    assert 'name="invoice_number" value="INV-2222"' in body
+    assert 'name="date" value="14/03/2021"' in body
+
+
+def test_the_check_screen_shows_the_stored_type_and_client_selected(
+    client, hollybrook, make_flagged
+):
+    make_flagged(doc_type="invoice", client=hollybrook)
+
+    body = page_text(client.get("/documents/17/check"))
+
+    assert '<option value="invoice" selected>' in body
+    assert f'<option value="{hollybrook.id}" selected>' in body
+
+
+def test_the_check_screen_shows_the_filename_that_will_be_used(
+    client, hollybrook, make_flagged
+):
+    make_flagged(
+        doc_type="invoice",
+        client=hollybrook,
+        fields={"invoice_number": "INV-2222", "amount_pence": 4550},
+        document_date=date(2021, 3, 14),
+    )
+
+    body = page_text(client.get("/documents/17/check"))
+
+    assert "2021-03-14 Invoice INV-2222.pdf" in body
+
+
+def test_the_filename_preview_asks_for_a_type_and_client_first(client, make_flagged):
+    make_flagged()
+
+    assert "Choose a type and a client to see the filename" in page_text(
+        client.get("/documents/17/check")
+    )
+
+
+def test_a_document_that_is_not_in_review_cannot_be_opened_on_the_check_screen(
+    client, db, make_flagged
+):
+    document = make_flagged()
+    document._state = DocState.FILED.value
+    db.commit()
+
+    response = client.get("/documents/17/check", follow_redirects=True)
+
+    assert "isn't waiting to be checked" in page_text(response)
+    assert "Document 17" in page_text(response)
+
+
+def test_the_check_screen_for_an_unknown_document_is_a_404(client):
+    assert client.get("/documents/99/check").status_code == 404
+    assert client.post("/documents/99/check").status_code == 404
+
+
+def test_the_document_page_links_to_the_check_screen_while_in_review(
+    client, make_flagged
+):
+    make_flagged()
+
+    body = page_text(client.get("/documents/17"))
+
+    assert 'href="/documents/17/check"' in body
+
+
+# C8 through the screen
+
+
+def test_c8_filing_from_the_screen(client, db, data_dir, hollybrook, make_flagged):
+    document = make_flagged()
+
+    response = client.post(
+        "/documents/17/check",
+        data=form_for(document, type="invoice", client=str(hollybrook.id)),
+        follow_redirects=True,
+    )
+
+    assert "Filed as 2021-03-14 Invoice INV-2222" in page_text(response)
+    assert "Nothing needs checking" in page_text(response)  # it went on to the list
+    db.expire_all()
+    assert db.get(Document, 17).state == DocState.FILED
+    assert (data_dir / "archive" / INVOICE_PATH).is_file()
+
+
+def test_c8_a_typed_value_from_the_screen_is_kept_when_the_type_changes(
+    client, db, hollybrook, make_flagged
+):
+    document = make_flagged()
+
+    client.post(
+        "/documents/17/check",
+        data=form_for(
+            document, type="letter", client=str(hollybrook.id), subject="Typed subject"
+        ),
+    )
+
+    db.expire_all()
+    filed = db.get(Document, 17)
+    assert filed.state == DocState.FILED
+    assert filed.fields == {"subject": "Typed subject"}
+    assert filed.document_date == date(2022, 5, 5)  # not typed: read again
+
+
+def test_the_screen_keeps_the_stored_type_and_client_when_the_form_has_none(
+    client, db, hollybrook, make_flagged
+):
+    document = make_flagged(
+        doc_type="invoice",
+        client=hollybrook,
+        fields={"invoice_number": "INV-2222", "amount_pence": 4550},
+        document_date=date(2021, 3, 14),
+    )
+
+    client.post("/documents/17/check", data=form_for(document, type="", client=""))
+
+    db.expire_all()
+    assert db.get(Document, 17).state == DocState.FILED
+
+
+# C10 through the screen
+
+
+def test_c10_no_client_shows_the_form_again_with_the_message_and_your_choices(
+    client, db, make_flagged
+):
+    document = make_flagged()
+
+    response = client.post(
+        "/documents/17/check",
+        data=form_for(
+            document,
+            type="invoice",
+            client="",
+            invoice_number="INV-7777",
+            date="01/02/2020",
+        ),
+    )
+
+    body = page_text(response)
+    assert response.status_code == 200  # the form again, not a redirect
+    assert "Choose a client before filing" in body
+    assert '<option value="invoice" selected>' in body
+    assert 'name="invoice_number" value="INV-7777"' in body
+    assert 'name="date" value="01/02/2020"' in body
+    # The hidden fields still hold what the screen first showed, not what was typed.
+    assert '<input type="hidden" name="shown_invoice_number" value="">' in body
+    db.expire_all()
+    assert db.get(Document, 17).state == DocState.NEEDS_REVIEW
+
+
+def test_c10_no_type_is_refused_with_the_form_shown_again(
+    client, hollybrook, make_flagged
+):
+    document = make_flagged()
+
+    response = client.post(
+        "/documents/17/check",
+        data=form_for(document, type="", client=str(hollybrook.id)),
+    )
+
+    body = page_text(response)
+    assert "Choose a type before filing" in body
+    assert f'<option value="{hollybrook.id}" selected>' in body
+
+
+def test_a_date_that_cannot_be_read_shows_the_form_again_with_what_was_typed(
+    client, hollybrook, make_flagged
+):
+    document = make_flagged()
+
+    response = client.post(
+        "/documents/17/check",
+        data=form_for(
+            document, type="invoice", client=str(hollybrook.id), date="banana"
+        ),
+    )
+
+    body = page_text(response)
+    assert 'Couldn\'t read the date "banana"' in body
+    assert 'name="date" value="banana"' in body
+
+
+def test_a_crafted_post_for_a_document_not_in_review_is_refused(
+    client, db, hollybrook, make_flagged
+):
+    document = make_flagged()
+    document._state = DocState.FILED.value
+    db.commit()
+
+    response = client.post(
+        "/documents/17/check",
+        data=form_for(document, type="letter", client=str(hollybrook.id)),
+        follow_redirects=True,
+    )
+
+    assert 'can\'t be confirmed while it is "Filed"' in page_text(response)
+    db.expire_all()
+    assert db.get(Document, 17).doc_type is None
