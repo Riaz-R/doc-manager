@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Filed documents{% endblock %}
+{% block content %}
+<h1>Filed documents</h1>
+{% if documents %}
+<table>
+  <thead>
+    <tr>
+      <th>Client</th>
+      <th>Type</th>
+      <th>Date</th>
+      <th>Keep until</th>
+      <th>Markers</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for document in documents %}
+    <tr>
+      <td>{% if document.client %}{{ document.client.ref }} {{ document.client.name }}{% else %}No client{% endif %}</td>
+      <td>{{ document.type.label if document.type else "Unclassified" }}</td>
+      <td>{{ document.document_date|format_date if document.document_date else "–" }}</td>
+      <td>{{ document.keep_until|format_date if document.keep_until else "–" }}</td>
+      <td>{% for marker in document.markers(today) %}<span class="badge">{{ marker }}</span> {% endfor %}</td>
+      <td><a href="{{ url_for('main.document_page', document_id=document.id) }}">Open</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No documents have been filed yet.</p>
+{% endif %}
+{% endblock %}

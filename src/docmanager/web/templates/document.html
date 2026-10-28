@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Document {{ document.id }}{% endblock %}
+{% block content %}
+<h1>Document {{ document.id }}</h1>
+<p>
+  <span class="badge">{{ document.state_label }}</span>
+  {% for marker in markers %}<span class="badge">{{ marker }}</span> {% endfor %}
+</p>
+
+<dl>
+  <dt>Type</dt>
+  <dd>{{ document.type.label if document.type else "Unclassified" }}</dd>
+  <dt>Client</dt>
+  <dd>{% if document.client %}{{ document.client.ref }} {{ document.client.name }}{% else %}No client{% endif %}</dd>
+  <dt>Date</dt>
+  <dd>{{ document.document_date|format_date if document.document_date else "No date" }}</dd>
+  {% if document.keep_until %}
+  <dt>Keep until</dt>
+  <dd>{{ document.keep_until|format_date }}</dd>
+  {% endif %}
+  {% for label, value in fields %}
+  <dt>{{ label }}</dt>
+  <dd>{{ value if value else "Not found" }}</dd>
+  {% endfor %}
+</dl>
+
+{% for label, url in buttons %}
+<form method="post" action="{{ url }}">
+  <button type="submit">{{ label }}</button>
+</form>
+{% endfor %}
+
+{% if pdf_state == "ok" %}
+<iframe src="{{ url_for('main.document_pdf', document_id=document.id) }}"
+        title="The document as a PDF" class="pdf"></iframe>
+{% elif pdf_state == "missing" %}
+<p class="flash">The PDF file is missing.</p>
+{% else %}
+<p>There is no PDF for this document yet.</p>
+{% endif %}
+{% endblock %}

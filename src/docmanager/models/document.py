@@ -115,6 +115,27 @@ class Document(Stateful, Base):
             return "Couldn't read"
         return self.state.label
 
+    @property
+    def needs_checking(self) -> bool:
+        """The "Needs checking" marker."""
+        return self.state == DocState.NEEDS_REVIEW
+
+    @property
+    def has_no_date(self) -> bool:
+        """The "No date" marker: filed, but no date was found, so no keep-until."""
+        return self.state == DocState.FILED and self.document_date is None
+
+    def markers(self, today: date) -> list[str]:
+        """The badges to show for this document, derived from its fields."""
+        shown = []
+        if self.needs_checking:
+            shown.append("Needs checking")
+        if self.has_no_date:
+            shown.append("No date")
+        if self.is_due(today):
+            shown.append("Due")
+        return shown
+
     def is_due(self, today: date) -> bool:
         """Filed, with a keep-until date that is already behind us."""
         return (

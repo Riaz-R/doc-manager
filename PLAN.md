@@ -20,7 +20,7 @@
 - [x] Task 12: Naming rules
 - [x] Task 13: OCR runner and start-up check
 - [x] Task 14: Read and file on Make document, with Retry
-- [ ] Task 15: Filed documents and the Document page
+- [x] Task 15: Filed documents and the Document page
 - [ ] Task 16: Seed creates the demo clients
 
 **Sitting (d) Review, Paper can go**

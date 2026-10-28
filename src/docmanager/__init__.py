@@ -10,6 +10,7 @@ from flask import Flask, flash, redirect, render_template, request
 from docmanager import config
 from docmanager.db import init_db
 from docmanager.errors import UserFacingError
+from docmanager.rules.dates import format_date
 from docmanager.services import ocr
 
 
@@ -40,6 +41,7 @@ def create_app(overrides: dict | None = None) -> Flask:
     from docmanager.web.routes import bp
 
     app.register_blueprint(bp)
+    app.jinja_env.filters["format_date"] = format_date
     _register_error_pages(app)
     return app
 

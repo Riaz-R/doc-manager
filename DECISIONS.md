@@ -979,3 +979,27 @@ alternatives.
 - **Alternatives considered:** Taking the type's key instead of the object; having `read_document` call `change_type`.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 158. Task 15: the Filed documents list
+- **Decision:** The list is at `/documents` and shows only documents in the Filed state (documents in the bin, needing checking or still being read are not listed), newest filed first. The columns are Client ("C-0042 Hollybrook Bakery Ltd", or "No client"), Type ("Unclassified" when there is none), Date, Keep until ("–" when empty) and Markers, plus an **Open** link to the Document page. The empty list says "No documents have been filed yet". Home gets a **Filed documents** button and the navigation bar a **Filed documents** link. Dates are shown in the "14 Mar 2021" form (`format_date`, now also a template filter).
+- **Alternatives considered:** Sorting by client or by document date; listing documents in the bin too.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 159. Task 15: the markers, and the field names on screen
+- **Decision:** `Document` gets `needs_checking` and `has_no_date` (the plan's markers) and `markers(today)`, which lists the badges to show in a fixed order: "Needs checking", "No date" (only for a Filed document with no date), "Due" (`is_due`). Each document type now says how its fields are named and shown (`field_labels` and `describe_fields()`): Invoice shows "Invoice number" and "Amount due", Letter shows "Subject". An amount in pence is shown as pounds ("£120.00"), which is fine in an HTML page even though the demo photos can't draw the symbol. A field that wasn't found shows "Not found". The Document page shows a "Keep until" line only when keep-until is set; the "Keep-until not set – add the document's date" sentence is task 21's.
+- **Alternatives considered:** Hard-coding the field names in the template; formatting the amount in the template.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 160. Task 15: the Document page, the PDF route and N5
+- **Decision:** The page at `/documents/<id>` works for a document in any state (it shows the state label, markers, type, client, date and fields). The PDF is served at `/documents/<id>/pdf` (shown in the page's `<iframe>`, inline, as `application/pdf`). The database's `pdf_path` is the source of truth, but a file is only served if it is **inside the data folder** once the path is resolved, so a bad or hostile path can never read another file. If the path is set but the file isn't there (or is outside the folder), the page says "The PDF file is missing" and the PDF route answers 404, and the rest of the page still works (N5). A document that has no PDF yet (for example one that hasn't been read) says "There is no PDF for this document yet", which N5 doesn't cover.
+- **Alternatives considered:** One wording for both cases; letting the browser download the PDF.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 161. Task 15: "only the allowed buttons" has no buttons yet
+- **Decision:** The page shows a button for each of the document's `allowed_actions()` that has an entry in `routes.ACTION_BUTTONS` (action → label and screen). **That table is empty for now**, because the screens the buttons would lead to arrive later (File it in tasks 17–18, Move to bin and Restore in task 22), and a button that leads nowhere would be worse than none. Tests cover the rule with entries added on the fly: a Filed document offers only its own action, a document in the bin only its own, an unread document none, and with the table empty no button is shown at all. Task 22 fills the table in.
+- **Alternatives considered:** Showing Move to bin and Restore now, pointing at pages that don't exist yet.
+- **Who chose:** Claude
+- **Why I agreed:**

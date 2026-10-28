@@ -54,6 +54,8 @@ class DocumentType:
     label: str  # "Invoice"
     plural_label: str  # "Invoices", used as the folder name
     retention_years: int
+    # (field, how it is named on screen), in the order shown.
+    field_labels: tuple[tuple[str, str], ...] = ()
 
     @staticmethod
     def keyword_score(text: str, weights: dict[str, int]) -> int:
@@ -87,12 +89,29 @@ class DocumentType:
         """The part of the filename that tells documents of this type apart."""
         raise NotImplementedError
 
+    def describe_fields(self, fields: dict) -> list[tuple[str, str | None]]:
+        """(label, text) for each field of this type, for showing on screen.
+
+        The text is None when the field wasn't found.
+        """
+        return [
+            (label, self.format_field(name, fields.get(name)))
+            for name, label in self.field_labels
+        ]
+
+    def format_field(self, name: str, value) -> str | None:
+        return None if value in (None, "") else str(value)
+
 
 class InvoiceType(DocumentType):
     key = "invoice"
     label = "Invoice"
     plural_label = "Invoices"
     retention_years = 6
+    field_labels = (
+        ("invoice_number", "Invoice number"),
+        ("amount_pence", "Amount due"),
+    )
 
     def score(self, text: str) -> int:
         return self.keyword_score(text, INVOICE_WEIGHTS)
@@ -106,6 +125,11 @@ class InvoiceType(DocumentType):
 
     def filename_key(self, fields: dict) -> str:
         return fields.get("invoice_number") or "no number"
+
+    def format_field(self, name: str, value) -> str | None:
+        if name == "amount_pence" and value is not None:
+            return f"£{value // 100:,}.{value % 100:02d}"
+        return super().format_field(name, value)
 
     @staticmethod
     def _invoice_number(text: str) -> str | None:
@@ -142,6 +166,7 @@ class LetterType(DocumentType):
     label = "Letter"
     plural_label = "Letters"
     retention_years = 3
+    field_labels = (("subject", "Subject"),)
 
     def score(self, text: str) -> int:
         return self.keyword_score(text, LETTER_WEIGHTS)
