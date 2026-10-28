@@ -27,7 +27,7 @@
 - [x] Task 17: Confirming a document in review
 - [x] Task 18: Needs checking and Check document screens
 - [x] Task 19: Paper can go
-- [ ] Task 20: End-to-end OCR test and demo-line check
+- [x] Task 20: End-to-end OCR test and demo-line check
 
 **——— DEMO LINE: demo script steps 1–7 (§9) work ———**
 

@@ -1087,3 +1087,15 @@ alternatives.
 - **Alternatives considered:** A single query counting everything for all boxes (faster, but harder to read and only worth it with hundreds of boxes).
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 176. Task 20: the end-to-end test uses the real OCR program and needed no font change
+- **Decision:** `tests/test_end_to_end.py` builds the app without an `OCR_RUNNER` override, so the real OCRmyPDF and Tesseract read the demo photos. Tesseract read all three demo documents correctly with the existing font, so `demo/photos.py` is unchanged. The unclear document is reviewed as a **Letter** for Hollybrook Bakery (any type would do; it has no real type). The test checks the invoice's text layer with `pdfminer.six` (added as a dev dependency, plan decision 17). Steps 2's duplicate-photo skip and 4's refusal are not repeated here: they are covered by `test_upload.py` and `test_grouping.py`.
+- **Alternatives considered:** Reviewing it as an Invoice; repeating the duplicate and refusal steps in the end-to-end test.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 177. Task 20: "run the demo by hand" was done through the test client
+- **Decision:** The plan says to run demo steps 1–7 by hand after the `ocr` test. I can't drive a browser from this session, so the end-to-end test (which goes through Flask's test client, the same routes and templates a browser uses) stands in for it. A real click-through in a browser is still worth doing once, at the demo line.
+- **Alternatives considered:** Starting the server and fetching pages with curl (it would only repeat what the test client already does).
+- **Who chose:** Claude
+- **Why I agreed:**

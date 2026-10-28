@@ -321,6 +321,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pdfminer-six" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -336,6 +337,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pdfminer-six", specifier = ">=20260107" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.17.3" },
 ]
