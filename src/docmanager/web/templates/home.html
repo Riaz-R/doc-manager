@@ -8,7 +8,7 @@
 <ul class="boxes">
   {% for box, inbox_count in boxes %}
   <li>
-    <strong>{{ box.name }}</strong>:
+    <a href="{{ url_for('main.inbox', box_id=box.id) }}"><strong>{{ box.name }}</strong></a>:
     {{ inbox_count }} {{ "photo" if inbox_count == 1 else "photos" }} to sort
   </li>
   {% endfor %}

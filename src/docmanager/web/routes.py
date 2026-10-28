@@ -1,15 +1,18 @@
 from flask import (
     Blueprint,
+    abort,
     current_app,
     flash,
     redirect,
     render_template,
     request,
+    send_from_directory,
     url_for,
 )
 
 from docmanager.db import get_session
 from docmanager.models.box import Box
+from docmanager.models.page import Page
 from docmanager.services import upload
 
 bp = Blueprint("main", __name__)
@@ -19,6 +22,24 @@ bp = Blueprint("main", __name__)
 def home():
     boxes = upload.boxes_with_inbox_counts(get_session())
     return render_template("home.html", boxes=boxes)
+
+
+@bp.get("/boxes/<int:box_id>/inbox")
+def inbox(box_id):
+    box = get_session().get(Box, box_id)
+    if box is None:
+        abort(404)
+    return render_template("inbox.html", box=box, pages=box.inbox_pages())
+
+
+@bp.get("/pages/<int:page_id>/thumb")
+def thumbnail(page_id):
+    page = get_session().get(Page, page_id)
+    if page is None:
+        abort(404)
+    # send_from_directory refuses any path that climbs out of the data folder,
+    # and answers 404 itself when the file is missing.
+    return send_from_directory(current_app.config["PATHS"].root, page.thumb_path)
 
 
 @bp.get("/upload")

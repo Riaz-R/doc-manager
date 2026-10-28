@@ -69,6 +69,11 @@ class Page(Stateful, Base):
     photo_path: Mapped[str]  # relative to the data folder
     thumb_path: Mapped[str]
 
+    @property
+    def order_key(self) -> tuple[str, int]:
+        """Photos are shown by filename; the id settles two photos with the same name."""
+        return (self.original_filename, self.id)
+
     box: Mapped[Box] = relationship(back_populates="pages")
     batch: Mapped[Batch] = relationship(back_populates="pages")
     document: Mapped["Document | None"] = relationship(back_populates="pages")

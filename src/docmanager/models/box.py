@@ -26,6 +26,26 @@ class Box(Base):
     pages: Mapped[list["Page"]] = relationship(back_populates="box")
     documents: Mapped[list["Document"]] = relationship(back_populates="box")
 
+    def ordered_pages(self) -> list[tuple[int, "Page"]]:
+        """Every photo in the box as (number, page), in filename order.
+
+        The number counts all the box's photos, whatever state they are in, so a
+        photo keeps its number as others leave the inbox ("Photos 3 to 7" stays
+        meaningful).
+        """
+        ordered = sorted(self.pages, key=lambda page: page.order_key)
+        return list(enumerate(ordered, start=1))
+
+    def inbox_pages(self) -> list[tuple[int, "Page"]]:
+        """The photos still to sort, with the numbers they have in the whole box."""
+        from docmanager.models.page import PageState  # page.py imports this file
+
+        return [
+            (number, page)
+            for number, page in self.ordered_pages()
+            if page.state == PageState.INBOX
+        ]
+
 
 class Batch(Base):
     """One upload into a box, kept as a record of what was added, skipped and refused."""

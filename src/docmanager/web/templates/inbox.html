@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Inbox: {{ box.name }}{% endblock %}
+{% block content %}
+<h1>Inbox: {{ box.name }}</h1>
+{% if pages %}
+<p>Photos still to sort, in filename order.</p>
+{# The Make document and Mark as not a page buttons arrive in tasks 7 and 8. #}
+<form method="post">
+  <ul class="photos">
+    {% for number, page in pages %}
+    <li class="photo">
+      <img src="{{ url_for('main.thumbnail', page_id=page.id) }}"
+           alt="Photo {{ number }}: {{ page.original_filename }}" width="400">
+      <p><span class="photo-number">{{ number }}</span> {{ page.original_filename }}</p>
+      <p>
+        <label><input type="radio" name="first" value="{{ page.id }}"> First</label>
+        <label><input type="radio" name="last" value="{{ page.id }}"> Last</label>
+      </p>
+      <p><label><input type="checkbox" name="discard" value="{{ page.id }}"> Not a page</label></p>
+    </li>
+    {% endfor %}
+  </ul>
+</form>
+{% else %}
+<p>No photos to sort in this box.</p>
+{% endif %}
+{% endblock %}

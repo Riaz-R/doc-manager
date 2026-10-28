@@ -70,3 +70,39 @@ input[type="file"] {
   font-size: 1rem;
   padding: 0.5rem 0;
 }
+
+.photos {
+  list-style: none;
+  padding: 0;
+}
+
+.photo {
+  border-bottom: 2px solid #111;
+  margin-bottom: 1rem;
+}
+
+.photo img {
+  max-width: 100%;
+  height: auto;
+  border: 2px solid #111;
+}
+
+.photo-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.photo label {
+  display: inline-block;
+  min-height: 48px;
+  line-height: 48px;
+  margin-right: 1.5rem;
+}
+
+.photo input[type="radio"],
+.photo input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}

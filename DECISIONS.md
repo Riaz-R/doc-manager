@@ -811,3 +811,15 @@ alternatives.
 - **Alternatives considered:** Counting through `box.pages` in the template.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 130. Task 6: `ordered_pages()` returns (number, page) pairs, and `inbox_pages()` keeps the box-wide numbers
+- **Decision:** `Box.ordered_pages()` returns a list of `(number, page)` pairs, numbered from 1 across every photo in the box, whatever its state. `Box.inbox_pages()` is the same list cut down to Inbox photos, so a photo keeps its number when others leave (decision 9). The sort key is a `Page.order_key` property, `(original_filename, id)`, compared as plain text, so `IMG_10` sorts before `IMG_9` and capital letters sort before small ones.
+- **Alternatives considered:** Storing the number on the page; returning bare pages and numbering in the template (which would number the inbox 1, 2, 3 again after photos leave).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 131. Task 6: addresses, and the form has no buttons yet
+- **Decision:** The Inbox is at `/boxes/<box id>/inbox` (a missing box shows the friendly 404), and thumbnails are at `/pages/<page id>/thumb`. The thumbnail is read from the stored relative path through Flask's `send_from_directory`, which refuses paths that leave the data folder and gives a 404 if the file is gone. Home turns each box name into a link to its inbox. The inbox form has the First, Last and Not a page controls but no submit buttons: Make document comes in Task 7 and Mark as not a page in Task 8. The thumbnails are shown at 400px wide (their real size) and shrink on narrow screens.
+- **Alternatives considered:** Adding the buttons now, with routes that do nothing; sending the user to the inbox after an upload.
+- **Who chose:** Claude
+- **Why I agreed:**
