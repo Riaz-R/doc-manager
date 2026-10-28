@@ -18,12 +18,16 @@
 {% if pages %}
 <p>Photos still to sort, in filename order. Pick the first and last photo of a
 document, then press Make document.</p>
-{# The Mark as not a page button arrives in task 8. #}
-<form method="post" action="{{ url_for('main.make_document', box_id=box.id) }}">
+{% macro buttons() %}
   <p>
     <button type="submit">Make document</button>
     <span>(takes up to a minute)</span>
+    <button type="submit" class="secondary"
+            formaction="{{ url_for('main.discard', box_id=box.id) }}">Mark ticked as not a page</button>
   </p>
+{% endmacro %}
+<form method="post" action="{{ url_for('main.make_document', box_id=box.id) }}">
+  {{ buttons() }}
   <ul class="photos">
     {% for number, page in pages %}
     <li class="photo">
@@ -38,10 +42,7 @@ document, then press Make document.</p>
     </li>
     {% endfor %}
   </ul>
-  <p>
-    <button type="submit">Make document</button>
-    <span>(takes up to a minute)</span>
-  </p>
+  {{ buttons() }}
 </form>
 {% else %}
 <p>No photos to sort in this box.</p>

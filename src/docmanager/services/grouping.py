@@ -6,12 +6,13 @@ Nothing here commits: the route does, once the whole grouping has worked.
 from dataclasses import dataclass
 from datetime import datetime
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from docmanager.errors import UserFacingError
 from docmanager.models.box import Box
 from docmanager.models.document import Document
-from docmanager.models.page import PageState
+from docmanager.models.page import Page, PageState
 
 
 class GroupingError(UserFacingError):
@@ -75,3 +76,45 @@ def make_document(
         page.position = position
         page.apply("group", now=now)
     return MadeDocument(document, first, last)
+
+
+def discard_pages(
+    session: Session, box: Box, page_ids: list[int], *, now: datetime
+) -> int:
+    """Mark the photos with these ids "Not a page": they leave the inbox for the Bin.
+
+    Returns how many photos were marked. If any one is refused, none are.
+    """
+    ids = set(page_ids)
+    if not ids:
+        raise GroupingError("Tick the photos that are not pages")
+    pages = {page.id: page for page in box.pages}
+    if not ids <= pages.keys():
+        raise GroupingError("That photo isn't in this box")
+    for page_id in sorted(ids):
+        pages[page_id].apply("discard", now=now)
+    return len(ids)
+
+
+def restore_page(session: Session, page_id: int, *, now: datetime) -> Page:
+    """Take a "Not a page" photo out of the Bin and back into its box's inbox."""
+    page = session.get(Page, page_id)
+    if page is None:
+        raise GroupingError("That photo isn't in the Bin")
+    page.apply("restore", now=now)
+    return page
+
+
+def binned_pages(session: Session) -> list[Page]:
+    """Every "Not a page" photo, grouped by box and in filename order."""
+    pages = session.scalars(
+        select(Page).where(Page._state == PageState.DISCARDED.value)
+    ).all()
+    return sorted(pages, key=lambda page: (page.box_id, *page.order_key))
+
+
+def bin_count(session: Session) -> int:
+    """How many items are in the Bin. Only photos so far; documents join in Task 22."""
+    return session.scalar(
+        select(func.count(Page.id)).where(Page._state == PageState.DISCARDED.value)
+    )

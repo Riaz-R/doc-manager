@@ -11,7 +11,7 @@
 - [x] Task 5: Upload into a box
 - [x] Task 6: Inbox in filename order
 - [x] Task 7: Make document
-- [ ] Task 8: Not a page, restore and the Bin
+- [x] Task 8: Not a page, restore and the Bin
 - [ ] Task 9: Demo photo generator
 
 **Sitting (c) OCR, classification, filing**

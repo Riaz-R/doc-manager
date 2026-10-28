@@ -847,3 +847,21 @@ alternatives.
 - **Alternatives considered:** One button at the bottom only; a single combined list of photos and documents.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 136. Task 8: discarding is all-or-nothing, and what counts as a refusal
+- **Decision:** `discard_pages(session, box, page_ids, *, now)` marks every ticked photo through `apply("discard")` and returns how many it marked. Nothing ticked is refused with "Tick the photos that are not pages" (new wording). A ticked id that isn't in this box gets "That photo isn't in this box" (same wording as Make document). A photo that isn't in the inbox (for example, already in a document) is refused by the lifecycle itself, with its usual sentence ("This photo can't be marked as not a page while it is "In a document""). If any tick is refused, none are applied, because nothing is committed. The same photo ticked twice counts once, and a ticked value that isn't a number counts as not ticked. The success message is "2 photos marked as not a page" ("1 photo" for one).
+- **Alternatives considered:** Quietly skipping the photos that can't be marked and discarding the rest.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 137. Task 8: restoring, the Bin screen and the tile
+- **Decision:** `restore_page()` uses `apply("restore")`; a photo that isn't in the Bin is refused by the lifecycle's own sentence, and an id that doesn't exist gets "That photo isn't in the Bin". After a restore the user stays on the Bin, with the message "Restored IMG_0002.jpg to the inbox of Box 1". The photo is back in its filename position because the order is worked out each time (decision 130). The Bin lists the photos from every box, grouped by box and in filename order, each with a 200px thumbnail, its box name and a **Restore** button. Documents, **Empty bin…** and the legal note wait for Tasks 22 and 23. Home gets a tile "Bin: 2 items" (the count is photos only for now), and the navigation bar gets a Bin link.
+- **Alternatives considered:** Sending the user to the box's inbox after a restore; one Bin per box.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 138. Task 8: one inbox form, two buttons
+- **Decision:** Make document and **Mark ticked as not a page** are two submit buttons in the same form: the second one carries its own address (`formaction`), so no JavaScript is needed. Both buttons are shown above and below the photo list, from one template macro. Mark ticked as not a page has the plain (white, outlined) button style so that Make document stays the main action (SPEC section 4).
+- **Alternatives considered:** Two separate forms (a tick box would then belong to only one of them); the "Not a page" button at the bottom only.
+- **Who chose:** Claude
+- **Why I agreed:**

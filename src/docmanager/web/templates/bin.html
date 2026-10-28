@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Bin{% endblock %}
+{% block content %}
+<h1>Bin</h1>
+{# Documents, Empty bin and the legal note arrive in tasks 22 and 23. #}
+{% if pages %}
+<h2>Photos marked as not a page</h2>
+<ul class="photos">
+  {% for page in pages %}
+  <li class="photo">
+    <img src="{{ url_for('main.thumbnail', page_id=page.id) }}"
+         alt="{{ page.original_filename }}" width="200">
+    <p>{{ page.box.name }}: {{ page.original_filename }}</p>
+    <form method="post" action="{{ url_for('main.restore_page', page_id=page.id) }}">
+      <button type="submit">Restore</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>The Bin is empty.</p>
+{% endif %}
+{% endblock %}

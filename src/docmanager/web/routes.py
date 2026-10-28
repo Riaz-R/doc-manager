@@ -20,8 +20,12 @@ bp = Blueprint("main", __name__)
 
 @bp.get("/")
 def home():
-    boxes = upload.boxes_with_inbox_counts(get_session())
-    return render_template("home.html", boxes=boxes)
+    session = get_session()
+    return render_template(
+        "home.html",
+        boxes=upload.boxes_with_inbox_counts(session),
+        bin_count=grouping.bin_count(session),
+    )
 
 
 @bp.get("/boxes/<int:box_id>/inbox")
@@ -53,6 +57,37 @@ def make_document(box_id):
     session.commit()
     flash(made.message())
     return redirect(url_for("main.inbox", box_id=box.id))
+
+
+@bp.post("/boxes/<int:box_id>/discard")
+def discard(box_id):
+    session = get_session()
+    box = session.get(Box, box_id)
+    if box is None:
+        abort(404)
+    count = grouping.discard_pages(
+        session,
+        box,
+        [int(raw) for raw in request.form.getlist("discard") if raw.isdigit()],
+        now=current_app.config["CLOCK"](),
+    )
+    session.commit()
+    flash(f"{count} {'photo' if count == 1 else 'photos'} marked as not a page")
+    return redirect(url_for("main.inbox", box_id=box.id))
+
+
+@bp.get("/bin")
+def bin_screen():
+    return render_template("bin.html", pages=grouping.binned_pages(get_session()))
+
+
+@bp.post("/pages/<int:page_id>/restore")
+def restore_page(page_id):
+    session = get_session()
+    page = grouping.restore_page(session, page_id, now=current_app.config["CLOCK"]())
+    session.commit()
+    flash(f"Restored {page.original_filename} to the inbox of {page.box.name}")
+    return redirect(url_for("main.bin_screen"))
 
 
 @bp.get("/pages/<int:page_id>/thumb")

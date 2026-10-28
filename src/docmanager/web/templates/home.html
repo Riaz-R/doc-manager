@@ -3,6 +3,10 @@
 <h1>Doc Manager</h1>
 <p><a class="button" href="{{ url_for('main.upload_form') }}">Upload photos</a></p>
 
+<p>
+  <a class="tile" href="{{ url_for('main.bin_screen') }}">Bin: {{ bin_count }} {{ "item" if bin_count == 1 else "items" }}</a>
+</p>
+
 <h2>Boxes</h2>
 {% if boxes %}
 <ul class="boxes">

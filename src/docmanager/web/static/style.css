@@ -106,3 +106,19 @@ input[type="file"] {
   height: 24px;
   vertical-align: middle;
 }
+
+.button.secondary,
+button.secondary {
+  color: #0b3d91;
+  background: #fff;
+}
+
+.tile {
+  display: inline-block;
+  min-height: 48px;
+  line-height: 48px;
+  padding: 0 1.25rem;
+  border: 2px solid #0b3d91;
+  border-radius: 6px;
+  font-weight: bold;
+}
