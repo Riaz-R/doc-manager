@@ -21,7 +21,7 @@
 - [x] Task 13: OCR runner and start-up check
 - [x] Task 14: Read and file on Make document, with Retry
 - [x] Task 15: Filed documents and the Document page
-- [ ] Task 16: Seed creates the demo clients
+- [x] Task 16: Seed creates the demo clients
 
 **Sitting (d) Review, Paper can go**
 - [ ] Task 17: Confirming a document in review

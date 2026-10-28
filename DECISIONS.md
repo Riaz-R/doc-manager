@@ -1003,3 +1003,27 @@ alternatives.
 - **Alternatives considered:** Showing Move to bin and Restore now, pointing at pages that don't exist yet.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 162. Task 16: the demo clients, and how seeding adds them
+- **Decision:** Eight invented clients, C-0042 Hollybrook Bakery Ltd first (the one the demo photos belong to), then C-0007 Ashgrove Dental Practice, C-0013 Birchfield Garden Centre, C-0021 Kestrel Print & Design, C-0034 Larkspur Tea Rooms, C-0051 Marlowe Joinery Ltd, C-0066 Quayside Bike Repairs and C-0078 Thornbury Plumbing Services. They are in `demo.seed.DEMO_CLIENTS`, where task 24 can draw documents for them. Seeding uses the normal app start-up on the data folder, so it also makes the usual folders and the empty database tables, then adds each client that isn't there yet. A client counts as "already there" if its **reference or its name** (ignoring case) exists, so a different spelling under the same reference, or the same name under another reference, is left alone and never causes a database error. An existing client is never changed. Each new client gets the current time as its `created_at`.
+- **Alternatives considered:** Matching on the reference only (a clash on the name would crash the seed); updating existing clients to the demo spelling.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 163: Task 16: the `.demo-data` marker, and what "empty" means for `--reset`
+- **Decision:** Plan decision 16 says `--reset` only empties a folder the seed script made (it carries a `.demo-data` marker) or one that is empty. The marker is written **only when the folder had nothing in it** when seeding began (or had just been emptied by `--reset`). A plain `seed` into a folder that already has other things in it adds the clients but does **not** mark it, because marking it would let a later `--reset` delete someone's real work. "Empty" is strict: a missing folder, or one with no entries at all. That includes the folders the app makes when it starts (`photos`, `archive`, `app.db` ...), so a data folder created by running `docmanager` once is **not** empty and has no marker, and `seed --reset` will refuse it. The refusal says so and what to do: "The data folder (…) already has things in it that the seed script didn't make, so --reset won't empty it. To start the demo from scratch, move or delete that folder yourself, or set DOCMANAGER_DATA to a new folder." **For task 25:** the README should tell the demo user to run `seed --reset` before first starting the app, or to use a fresh `DOCMANAGER_DATA`.
+- **Alternatives considered:** Treating an app-made folder with an empty database as empty (it would need a guess about what counts as "nothing"); marking every folder that is seeded.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 164: Task 16: how `--reset` empties, and what it refuses
+- **Decision:** With the marker present, **everything** inside the folder is deleted (the folder itself stays), including any file that isn't the app's: the marker is the seed script's promise that the folder is demo data. A link inside the folder is removed but never followed, so what it points at is untouched (a test proves it). A path that is a file is refused with "… is a file, not a folder." A refusal changes nothing at all: no files deleted, no database made, no marker written. `SeedResult` says how many clients were added and skipped, whether the folder was emptied and whether it is now marked.
+- **Alternatives considered:** Deleting only the folders the app makes; asking "are you sure?" first (a refusal when it isn't ours is the safety, and the demo needs it to run without prompts).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 165: Task 16: the `seed` command
+- **Decision:** `docmanager seed [--reset]` seeds the data folder named by `DOCMANAGER_DATA` (default `./data`), with no other options. It prints one line ("Added 8 clients.", "Added 0 clients. 8 already there.", "Emptied the data folder first. Added 8 clients."). A refusal goes to the error stream and exits with code 1. It doesn't start the server, and it doesn't check for the OCR programs, because adding clients needs no OCR (task 24 will make the seeding of documents need them).
+- **Alternatives considered:** Letting `seed` take a folder as an option (the environment setting is how every other part finds the data folder).
+- **Who chose:** Claude
+- **Why I agreed:**
