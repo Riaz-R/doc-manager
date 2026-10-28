@@ -13,7 +13,7 @@ from flask import (
 from docmanager.db import get_session
 from docmanager.models.box import Box
 from docmanager.models.page import Page
-from docmanager.services import upload
+from docmanager.services import grouping, upload
 
 bp = Blueprint("main", __name__)
 
@@ -29,7 +29,30 @@ def inbox(box_id):
     box = get_session().get(Box, box_id)
     if box is None:
         abort(404)
-    return render_template("inbox.html", box=box, pages=box.inbox_pages())
+    return render_template(
+        "inbox.html",
+        box=box,
+        pages=box.inbox_pages(),
+        unread=box.unread_documents(),
+    )
+
+
+@bp.post("/boxes/<int:box_id>/make-document")
+def make_document(box_id):
+    session = get_session()
+    box = session.get(Box, box_id)
+    if box is None:
+        abort(404)
+    made = grouping.make_document(
+        session,
+        box,
+        _page_id(request.form.get("first")),
+        _page_id(request.form.get("last")),
+        now=current_app.config["CLOCK"](),
+    )
+    session.commit()
+    flash(made.message())
+    return redirect(url_for("main.inbox", box_id=box.id))
 
 
 @bp.get("/pages/<int:page_id>/thumb")
@@ -93,3 +116,8 @@ def too_big(_error) -> object:
         "photos, then the rest, into the same box."
     )
     return redirect(url_for("main.upload_form"))
+
+
+def _page_id(raw: str | None) -> int | None:
+    """A form value as a page id; anything that isn't a number counts as not picked."""
+    return int(raw) if raw and raw.isdigit() else None

@@ -46,6 +46,15 @@ class Box(Base):
             if page.state == PageState.INBOX
         ]
 
+    def unread_documents(self) -> list["Document"]:
+        """Documents that were made from photos but not read yet, oldest first."""
+        from docmanager.models.document import DocState  # document.py imports this file
+
+        return sorted(
+            (d for d in self.documents if d.state == DocState.GROUPED),
+            key=lambda d: d.id,
+        )
+
 
 class Batch(Base):
     """One upload into a box, kept as a record of what was added, skipped and refused."""

@@ -2,10 +2,28 @@
 {% block title %}Inbox: {{ box.name }}{% endblock %}
 {% block content %}
 <h1>Inbox: {{ box.name }}</h1>
+
+{% if unread %}
+<section class="unread">
+  <h2>Documents not read yet</h2>
+  <ul>
+    {% for document in unread %}
+    {% set count = document.pages|length %}
+    <li>Document {{ document.id }}: {{ count }} {{ "page" if count == 1 else "pages" }} &ndash; {{ document.state_label }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {% if pages %}
-<p>Photos still to sort, in filename order.</p>
-{# The Make document and Mark as not a page buttons arrive in tasks 7 and 8. #}
-<form method="post">
+<p>Photos still to sort, in filename order. Pick the first and last photo of a
+document, then press Make document.</p>
+{# The Mark as not a page button arrives in task 8. #}
+<form method="post" action="{{ url_for('main.make_document', box_id=box.id) }}">
+  <p>
+    <button type="submit">Make document</button>
+    <span>(takes up to a minute)</span>
+  </p>
   <ul class="photos">
     {% for number, page in pages %}
     <li class="photo">
@@ -20,6 +38,10 @@
     </li>
     {% endfor %}
   </ul>
+  <p>
+    <button type="submit">Make document</button>
+    <span>(takes up to a minute)</span>
+  </p>
 </form>
 {% else %}
 <p>No photos to sort in this box.</p>

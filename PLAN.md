@@ -10,7 +10,7 @@
 **Sitting (b) Upload, inbox, grouping, Not a page**
 - [x] Task 5: Upload into a box
 - [x] Task 6: Inbox in filename order
-- [ ] Task 7: Make document
+- [x] Task 7: Make document
 - [ ] Task 8: Not a page, restore and the Bin
 - [ ] Task 9: Demo photo generator
 

@@ -829,3 +829,21 @@ alternatives.
 - **Alternatives considered:** Keeping the single dropdown and refusing when both are filled in; using the typed name whenever it isn't empty.
 - **Who chose:** Me
 - **Why I agreed:**
+
+### 133. Task 7: `make_document` takes the two photos' ids, and the form values are turned into ids in the route
+- **Decision:** The Inbox radio buttons carry page ids, so `make_document(session, box, first_page_id, last_page_id, *, now)` takes ids and finds their inbox numbers itself. It returns a `MadeDocument` (the document and its first and last numbers), whose `.message()` gives "Document made from photos 3 to 6", or "Document made from photo 7" for a one-photo document (the plan only gave the plural wording). A form value that isn't a number counts as "not picked", so it gets the G5 refusal. As in Task 5, the service doesn't commit; the route does.
+- **Alternatives considered:** Taking inbox numbers from the form instead of ids (a number can point at a different photo if the inbox changed since the page was shown).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 134. Task 7: refusals the plan didn't word, and a refused grouping changes nothing
+- **Decision:** Two crafted-request refusals get new wording: "That photo isn't in this box" (an id that doesn't exist or belongs to another box) and "Photo 4 is marked as not a page" (the first or last photo is a Not a page photo; only photos in the middle of a range are skipped, G7). A photo that is already Grouped at either end gets the G4 sentence. G4 names the range after any swap, so picking 7 then 3 says "Photos 3 to 7". Every check runs before anything is changed, so a refusal leaves no half-made document.
+- **Alternatives considered:** Quietly moving an end that is Not a page to the nearest photo that is still in the inbox.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 135. Task 7: the inbox lists unread documents in their own section, and has the button above and below the photos
+- **Decision:** A "Documents not read yet" section at the top of the Inbox lists the box's Grouped documents ("Document 3: 4 pages – Not read yet"), using `Document.state_label`, so it will say "Couldn't read" once Task 14 stores errors. It shows even when no photos are left to sort. `Box.unread_documents()` supplies the list, oldest first. The **Make document** button, labelled "(takes up to a minute)", appears both above and below the photos, because a box can have hundreds of photos and the list is long.
+- **Alternatives considered:** One button at the bottom only; a single combined list of photos and documents.
+- **Who chose:** Claude
+- **Why I agreed:**
