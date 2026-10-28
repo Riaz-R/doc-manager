@@ -10,6 +10,7 @@ from flask import Flask, flash, redirect, render_template, request
 from docmanager import config
 from docmanager.db import init_db
 from docmanager.errors import UserFacingError
+from docmanager.services import ocr
 
 
 def create_app(overrides: dict | None = None) -> Flask:
@@ -19,6 +20,7 @@ def create_app(overrides: dict | None = None) -> Flask:
     # fine here: it only means a message pending across a restart is lost.
     app.config["SECRET_KEY"] = secrets.token_hex(32)
     app.config["CLOCK"] = datetime.now
+    app.config["OCR_RUNNER"] = ocr.run_ocrmypdf  # tests swap in a fake
     app.config["MAX_CONTENT_LENGTH"] = (
         config.MAX_UPLOAD_BYTES
     )  # Flask answers 413 above it

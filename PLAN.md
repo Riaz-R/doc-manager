@@ -18,7 +18,7 @@
 - [x] Task 10: Document types and dates
 - [x] Task 11: Classification, with the low-text check
 - [x] Task 12: Naming rules
-- [ ] Task 13: OCR runner and start-up check
+- [x] Task 13: OCR runner and start-up check
 - [ ] Task 14: Read and file on Make document, with Retry
 - [ ] Task 15: Filed documents and the Document page
 - [ ] Task 16: Seed creates the demo clients

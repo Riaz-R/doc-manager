@@ -10,6 +10,7 @@ from docmanager import cli
 from docmanager.demo import photos
 from docmanager.models.box import Batch, Box
 from docmanager.models.page import Page
+from docmanager.services import ocr
 
 NAMES = [f"IMG_{n:04d}.jpg" for n in range(1, 8)]
 LENS_COVERS = ["IMG_0003.jpg", "IMG_0005.jpg"]
@@ -271,6 +272,7 @@ def test_the_command_with_no_arguments_still_serves_on_127_0_0_1(monkeypatch):
     calls = []
     monkeypatch.setattr(Flask, "run", lambda self, *a, **k: calls.append(k))
 
+    monkeypatch.setattr(ocr, "check_ocr_tools", list)
     cli.main([])
 
     assert calls == [{"host": "127.0.0.1", "port": 5000, "debug": False}]

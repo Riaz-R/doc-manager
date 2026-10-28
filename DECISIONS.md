@@ -937,3 +937,21 @@ alternatives.
 - **Alternatives considered:** Only trimming the end of a name, as N4 literally says; dropping unsafe characters instead of turning them into dashes.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 151. Task 13: how `run_ocrmypdf` runs the program and what counts as a failure
+- **Decision:** `run_ocrmypdf(pdf_in, pdf_out, sidecar, *, timeout=None, command=None)` runs `python -m ocrmypdf -l eng --rotate-pages --deskew --sidecar <sidecar> <in> <out>` with the same Python that runs the app. It raises `OcrFailed` (whose `.detail` is the technical text for the log) when the program exits with anything but 0 (the detail holds the exit code and the **last** 2000 characters of its error output), when it takes longer than the timeout (default `config.OCR_TIMEOUT_SECONDS`, 300), or when it exits 0 but didn't write both the PDF and the text file. The program is started in its own process group, and on a timeout the **whole group** is killed, because OCRmyPDF starts Tesseract and Ghostscript, and killing only the parent would leave them running (and would make the web request wait for them). This needs Linux or macOS (it uses `start_new_session` and `killpg`), which is fine for the apt-based setup; a Windows version would need changing. `command` replaces the program, only so tests can use a stand-in script. `OcrFailed` is a plain exception, not a `UserFacingError`: the user sees the fixed sentence `OCR_ERROR_MESSAGE` ("Couldn't read this document. Try again, or retake the photos.") on the document instead.
+- **Alternatives considered:** `subprocess.run(timeout=...)`, which kills only the parent; calling OCRmyPDF's Python API in the web process (a crash or hang would take the app with it).
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 152. Task 13: combining photos, and the `OCR_RUNNER` setting
+- **Decision:** `combine_photos(photo_paths, pdf_path)` uses img2pdf with its defaults: one page per photo, in the order given, each page the size of its photo (JPEGs are embedded untouched, not re-compressed). img2pdf refuses a PNG with transparency or an unusual colour mode, so such a PNG is first flattened onto white (a test covers RGBA, LA, palette and 16-bit PNGs). Any failure while combining (a damaged file, no photos) is raised as `OcrFailed`, so the reading code has one kind of failure to deal with. `create_app` sets `OCR_RUNNER` to `run_ocrmypdf` by default, and a test can replace it with a function taking `(pdf_in, pdf_out, sidecar)`. EXIF rotation isn't applied (that is the should-tier item B9).
+- **Alternatives considered:** Fitting every page to A4; refusing PNGs with transparency at upload.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 153. Task 13: the start-up check, and the fake OCR in the tests
+- **Decision:** `check_ocr_tools()` returns a list of plain-words problems (empty means fine): Tesseract not installed; Tesseract installed but won't start; Tesseract missing the English (`eng`) or page-direction (`osd`) data (found with `tesseract --list-langs`, and only asked when Tesseract exists); Ghostscript (`gs`) not installed. Every problem is listed together. `docmanager` with no arguments runs the check first; if anything is wrong it prints "Doc Manager can't start yet:", the problems, and `sudo apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd ghostscript`, to the error stream and exits with code 1 without starting the server. `make-photos` doesn't need the tools, so it doesn't check. In the tests, `FakeOcr(text, fail=None)` copies the PDF, writes the text as the sidecar, or raises `OcrFailed`; the shared `app` fixture now uses a fake that **fails** until a test gives it text, so no ordinary test can run the real OCR by accident. Tests marked `ocr` are skipped, with the missing tools and the install command in the reason, when the check finds a problem. The two older AT-21 tests now set the check to "no problems", so they don't depend on this machine.
+- **Alternatives considered:** Checking only when the first document is read; a fake that succeeds by default.
+- **Who chose:** Claude
+- **Why I agreed:**

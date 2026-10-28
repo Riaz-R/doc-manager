@@ -5,6 +5,7 @@ from flask import Flask
 from docmanager import cli, config, create_app
 from docmanager.db import get_session
 from docmanager.errors import UserFacingError
+from docmanager.services import ocr
 
 
 def test_home_page_answers_200(client):
@@ -22,6 +23,7 @@ def test_command_serves_only_on_127_0_0_1(monkeypatch):
 
     monkeypatch.setattr(Flask, "run", record_run)
 
+    monkeypatch.setattr(ocr, "check_ocr_tools", list)  # not what this test is about
     cli.main([])
 
     assert calls == [((), {"host": "127.0.0.1", "port": 5000, "debug": False})]
