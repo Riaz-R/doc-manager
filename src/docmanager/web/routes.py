@@ -21,14 +21,18 @@ from docmanager.models.client import Client
 from docmanager.models.document import DocState, Document
 from docmanager.models.document_types import DOCUMENT_TYPES
 from docmanager.models.page import Page
-from docmanager.services import filing, grouping, upload
+from docmanager.services import disposal, filing, grouping, upload
 
 bp = Blueprint("main", __name__)
 
 # A button on the Document page for each lifecycle action that has a screen:
 # {action: (label, endpoint)}. The page shows a button only when the document's
-# lifecycle allows the action. Move to bin and Restore join this in task 22.
-ACTION_BUTTONS: dict[str, tuple[str, str]] = {}
+# lifecycle allows the action. Move to bin is offered even before a document is
+# Due: pressing it then gives the refusal reason (decision 3).
+ACTION_BUTTONS: dict[str, tuple[str, str]] = {
+    "dispose": ("Move to bin", "main.bin_document"),
+    "restore": ("Restore", "main.restore_document"),
+}
 
 
 @bp.get("/")
@@ -37,7 +41,8 @@ def home():
     return render_template(
         "home.html",
         boxes=upload.boxes_with_inbox_counts(session),
-        bin_count=grouping.bin_count(session),
+        bin_count=grouping.bin_count(session) + len(disposal.binned_documents(session)),
+        due_count=len(disposal.due_documents(session, _today())),
         check_count=len(filing.documents_needing_check(session)),
     )
 
@@ -242,7 +247,45 @@ def discard(box_id):
 
 @bp.get("/bin")
 def bin_screen():
-    return render_template("bin.html", pages=grouping.binned_pages(get_session()))
+    session = get_session()
+    return render_template(
+        "bin.html",
+        pages=grouping.binned_pages(session),
+        documents=disposal.binned_documents(session),
+    )
+
+
+@bp.get("/due")
+def due_for_disposal():
+    documents = disposal.due_documents(get_session(), _today())
+    return render_template("due.html", documents=documents)
+
+
+@bp.post("/due/bin")
+def bin_ticked():
+    ids = [int(raw) for raw in request.form.getlist("document") if raw.isdigit()]
+    return _move_to_bin(ids, back="main.due_for_disposal")
+
+
+@bp.post("/documents/<int:document_id>/bin")
+def bin_document(document_id):
+    return _move_to_bin(
+        [document_id], back="main.document_page", document_id=document_id
+    )
+
+
+@bp.post("/documents/<int:document_id>/restore")
+def restore_document(document_id):
+    session = get_session()
+    document = disposal.restore_document(
+        session,
+        document_id,
+        paths=current_app.config["PATHS"],
+        now=current_app.config["CLOCK"](),
+    )
+    session.commit()
+    flash(f"Restored {document.filed_name.removesuffix('.pdf')}")
+    return redirect(url_for("main.document_page", document_id=document.id))
 
 
 @bp.post("/pages/<int:page_id>/restore")
@@ -318,6 +361,19 @@ def too_big(_error) -> object:
         "photos, then the rest, into the same box."
     )
     return redirect(url_for("main.upload_form"))
+
+
+def _move_to_bin(ids: list[int], *, back: str, **back_args):
+    session = get_session()
+    count = disposal.move_to_bin(
+        session,
+        ids,
+        paths=current_app.config["PATHS"],
+        now=current_app.config["CLOCK"](),
+    )
+    session.commit()
+    flash(f"{count} {'document' if count == 1 else 'documents'} moved to the bin")
+    return redirect(url_for(back, **back_args))
 
 
 def _page_id(raw: str | None) -> int | None:

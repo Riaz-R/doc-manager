@@ -1111,3 +1111,9 @@ alternatives.
 - **Alternatives considered:** Setting it only when the document is filed; showing the "not set" line only for Filed documents.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 180. Task 22: how moving to the bin and restoring behave
+- **Decision:** `move_to_bin()` checks every ticked document's guard before changing any, so one that must still be kept stops the whole move (nothing changes). A document whose PDF has gone from disk is still binned (so it can eventually be destroyed), but `restore_document()` refuses it, saying the PDF file is missing, and it stays in the bin. Nothing ticked gives "Tick the documents to move to the bin"; an unknown id gives "That document can't be found". The legal note is `config.LEGAL_NOTE`, available to every template as `LEGAL_NOTE`. The Home Bin tile now counts documents as well as photos, and a new Due for disposal tile shows the due count. Restoring sends you to the document's page. `test_no_buttons_are_offered_until_their_actions_exist` was a placeholder for this task, so it became `test_only_move_to_bin_and_restore_have_buttons`.
+- **Alternatives considered:** Moving the documents that pass and refusing the rest; refusing to bin a document with a missing PDF.
+- **Who chose:** Claude
+- **Why I agreed:**

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Due for disposal{% endblock %}
+{% block content %}
+<h1>Due for disposal</h1>
+<p class="note">{{ LEGAL_NOTE }}</p>
+{% if documents %}
+<form method="post" action="{{ url_for('main.bin_ticked') }}">
+  <table>
+    <tr>
+      <th>Move</th>
+      <th>Client</th>
+      <th>Document</th>
+      <th>Keep until</th>
+    </tr>
+    {% for document in documents %}
+    <tr>
+      <td><input type="checkbox" name="document" value="{{ document.id }}" id="d{{ document.id }}"
+                 aria-label="Move {{ document.filed_name }} to the bin"></td>
+      <td>{{ document.client.ref }} {{ document.client.name }}</td>
+      <td><a href="{{ url_for('main.document_page', document_id=document.id) }}">{{ document.filed_name }}</a></td>
+      <td>{{ document.keep_until|format_date }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><button type="submit">Move ticked to bin</button></p>
+</form>
+{% else %}
+<p>Nothing is due for disposal.</p>
+{% endif %}
+{% endblock %}

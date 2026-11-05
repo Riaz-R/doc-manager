@@ -328,10 +328,10 @@ def test_a_path_that_climbs_out_of_the_data_folder_is_never_served(
 # --- Only the allowed buttons ---
 
 
-def test_no_buttons_are_offered_until_their_actions_exist(client, make_document):
-    # The Move to bin, Restore and File it buttons arrive in tasks 17 and 22.
-    assert routes.ACTION_BUTTONS == {}
-    document = make_document()
+def test_only_move_to_bin_and_restore_have_buttons(client, make_document):
+    # File it is not here: it is on the Check document screen.
+    assert set(routes.ACTION_BUTTONS) == {"dispose", "restore"}
+    document = make_document(DocState.NEEDS_REVIEW)
 
     assert "<button" not in client.get(f"/documents/{document.id}").get_data(
         as_text=True

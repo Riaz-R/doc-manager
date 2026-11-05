@@ -71,3 +71,10 @@ class Paths:
             self.logs,
         ):
             folder.mkdir(parents=True, exist_ok=True)
+
+
+# Shown on Due for disposal, the Bin, Empty bin and in the README (SPEC 8).
+LEGAL_NOTE = (
+    "These keep-until dates come from example rules. Check the rules that apply "
+    "to you, including whether a digital copy may replace the paper."
+)

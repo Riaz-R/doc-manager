@@ -2,7 +2,22 @@
 {% block title %}Bin{% endblock %}
 {% block content %}
 <h1>Bin</h1>
-{# Documents, Empty bin and the legal note arrive in tasks 22 and 23. #}
+{# Empty bin arrives in task 23. #}
+<p class="note">{{ LEGAL_NOTE }}</p>
+{% if documents %}
+<h2>Documents</h2>
+<ul>
+  {% for document in documents %}
+  <li>
+    <a href="{{ url_for('main.document_page', document_id=document.id) }}">{{ document.filed_name }}</a>
+    – {{ document.client.ref }} {{ document.client.name }}
+    <form method="post" action="{{ url_for('main.restore_document', document_id=document.id) }}">
+      <button type="submit">Restore</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
 {% if pages %}
 <h2>Photos marked as not a page</h2>
 <ul class="photos">
@@ -17,7 +32,8 @@
   </li>
   {% endfor %}
 </ul>
-{% else %}
+{% endif %}
+{% if not pages and not documents %}
 <p>The Bin is empty.</p>
 {% endif %}
 {% endblock %}

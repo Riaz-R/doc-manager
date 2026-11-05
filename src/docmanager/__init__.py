@@ -42,6 +42,7 @@ def create_app(overrides: dict | None = None) -> Flask:
 
     app.register_blueprint(bp)
     app.jinja_env.filters["format_date"] = format_date
+    app.jinja_env.globals["LEGAL_NOTE"] = config.LEGAL_NOTE
     _register_error_pages(app)
     return app
 
