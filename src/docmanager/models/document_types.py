@@ -8,7 +8,7 @@ import re
 from datetime import date
 from decimal import Decimal
 
-from docmanager.rules.dates import find_dated_spans, find_dates
+from docmanager.rules.dates import add_years, find_dated_spans, find_dates
 
 # What each type listens for, and how loudly (decision 143). A word or phrase
 # counts once however often it appears.
@@ -88,6 +88,16 @@ class DocumentType:
     def filename_key(self, fields: dict) -> str:
         """The part of the filename that tells documents of this type apart."""
         raise NotImplementedError
+
+    def keep_until(self, document_date: date | None) -> date | None:
+        """The last day the record must be kept: the document's date plus this type's years.
+
+        None when there is no date. It is counted from the document's own date, not
+        from the day it was uploaded (SPEC 2, changes from the brief).
+        """
+        if document_date is None:
+            return None
+        return add_years(document_date, self.retention_years)
 
     def describe_fields(self, fields: dict) -> list[tuple[str, str | None]]:
         """(label, text) for each field of this type, for showing on screen.

@@ -164,6 +164,7 @@ def test_c8_picking_a_type_and_client_files_the_document(
     # change_type read the invoice fields and date again from the text.
     assert document.fields == {"invoice_number": "INV-2222", "amount_pence": 4550}
     assert document.document_date == date(2021, 3, 14)
+    assert document.keep_until == date(2027, 3, 14)
     assert document.filed_name == "2021-03-14 Invoice INV-2222.pdf"
     assert document.filed_at == FIXED_NOW
     assert document.pdf_path == f"archive/{INVOICE_PATH}"
@@ -230,6 +231,7 @@ def test_c9_changing_the_type_to_letter_keeps_id_pages_and_history(
     assert same.doc_type == "letter"
     assert same.fields == {"subject": "Year end paperwork"}
     assert same.document_date == date(2022, 5, 5)
+    assert same.keep_until == date(2025, 5, 5)  # a letter is kept 3 years
     assert (data_dir / "archive" / LETTER_PATH).is_file()
 
 

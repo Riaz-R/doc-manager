@@ -1105,3 +1105,9 @@ alternatives.
 - **Alternatives considered:** Making `Paths` always absolute for the whole app (a wider change than the bug needs); serving the file with `send_file` (the same path logic would need repeating).
 - **Who chose:** Me
 - **Why I agreed:**
+
+### 179. Task 21: where keep-until is worked out
+- **Decision:** `Document.recalculate_keep_until()` sets keep-until from the document's type and date (None if either is missing). It is called from `change_type()`, after `read_document` classifies, and in `confirm_document` (which also restores the old keep-until if the confirm is refused). So a document flagged with a type already has its keep-until before anyone confirms it. The Document page always shows a "Keep until" line, with "Keep-until not set – add the document's date" when it is empty, whatever the document's state.
+- **Alternatives considered:** Setting it only when the document is filed; showing the "not set" line only for Filed documents.
+- **Who chose:** Claude
+- **Why I agreed:**

@@ -14,10 +14,8 @@
   <dd>{% if document.client %}{{ document.client.ref }} {{ document.client.name }}{% else %}No client{% endif %}</dd>
   <dt>Date</dt>
   <dd>{{ document.document_date|format_date if document.document_date else "No date" }}</dd>
-  {% if document.keep_until %}
   <dt>Keep until</dt>
-  <dd>{{ document.keep_until|format_date }}</dd>
-  {% endif %}
+  <dd>{{ document.keep_until|format_date if document.keep_until else "Keep-until not set – add the document's date" }}</dd>
   {% for label, value in fields %}
   <dt>{{ label }}</dt>
   <dd>{{ value if value else "Not found" }}</dd>

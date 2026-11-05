@@ -105,3 +105,11 @@ def parse_date(text: str) -> date | None:
     if len(spans) == 1 and spans[0][0] == 0 and spans[0][1] == len(text):
         return spans[0][2]
     return None
+
+
+def add_years(day: date, years: int) -> date:
+    """`day` moved forward by whole years. 29 February in a non-leap year becomes 28 February."""
+    try:
+        return day.replace(year=day.year + years)
+    except ValueError:
+        return day.replace(year=day.year + years, day=28)

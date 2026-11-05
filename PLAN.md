@@ -32,7 +32,7 @@
 **——— DEMO LINE: demo script steps 1–7 (§9) work ———**
 
 **Sitting (e) Retention and destruction**
-- [ ] Task 21: Retention
+- [x] Task 21: Retention
 - [ ] Task 22: Due for disposal, Move to bin, restore
 - [ ] Task 23: Empty bin and disposal records
 

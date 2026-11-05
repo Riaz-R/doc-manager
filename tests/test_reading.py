@@ -114,6 +114,7 @@ def test_c1_end_to_end_every_field_is_stored(client, db, fake_ocr):
     assert document.client.ref == "C-0042"
     assert document.fields == {"invoice_number": "INV-1043", "amount_pence": 12000}
     assert document.document_date == date(2021, 3, 14)
+    assert document.keep_until == date(2027, 3, 14)
     assert (document.type_score, document.runner_up_score) == (12, 0)
     assert document.review_reasons == []
     assert document.ocr_text == texts.INVOICE_C1

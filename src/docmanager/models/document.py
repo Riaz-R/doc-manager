@@ -105,6 +105,13 @@ class Document(Stateful, Base):
         self.fields = (
             found  # a new dict: SQLAlchemy can't see changes inside the old one
         )
+        self.recalculate_keep_until()
+
+    def recalculate_keep_until(self) -> None:
+        """Set keep_until from the type and document date; None if either is missing."""
+        self.keep_until = (
+            self.type.keep_until(self.document_date) if self.type else None
+        )
 
     @property
     def state_label(self) -> str:

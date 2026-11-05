@@ -91,6 +91,7 @@ def read_document(
     document.doc_type = found.doc_type
     document.fields = found.fields
     document.document_date = found.document_date
+    document.recalculate_keep_until()
     document.type_score = found.type_score
     document.runner_up_score = found.runner_up_score
     document.client = found.client
@@ -241,6 +242,7 @@ def confirm_document(
         document.fields,
         document.document_date,
         document.client,
+        document.keep_until,
     )
     document.doc_type = chosen.key if chosen else None
     document.fields = (
@@ -248,6 +250,7 @@ def confirm_document(
     )
     document.document_date = when
     document.client = client
+    document.recalculate_keep_until()
     try:
         reason = document.guard_confirm(now)
         if reason:
@@ -259,9 +262,13 @@ def confirm_document(
             )
         _file(document, paths, work, now, action="confirm")
     except UserFacingError:
-        document.doc_type, document.fields, document.document_date, document.client = (
-            before
-        )
+        (
+            document.doc_type,
+            document.fields,
+            document.document_date,
+            document.client,
+            document.keep_until,
+        ) = before
         raise
     return ReadResult(document, "filed")
 
