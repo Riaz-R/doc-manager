@@ -2,7 +2,6 @@
 {% block title %}Bin{% endblock %}
 {% block content %}
 <h1>Bin</h1>
-{# Empty bin arrives in task 23. #}
 <p class="note">{{ LEGAL_NOTE }}</p>
 {% if documents %}
 <h2>Documents</h2>
@@ -35,5 +34,7 @@
 {% endif %}
 {% if not pages and not documents %}
 <p>The Bin is empty.</p>
+{% else %}
+<p><a class="button" href="{{ url_for('main.empty_bin_confirm') }}">Empty bin…</a></p>
 {% endif %}
 {% endblock %}

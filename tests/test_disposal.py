@@ -1,17 +1,22 @@
-"""AT-19 (first half): Due for disposal, Move to bin and restore. D1 to D3 and R4."""
+"""AT-19: Due for disposal, Move to bin, restore, Empty bin and disposal records (D1 to D6, R4, B5)."""
 
 import html
+import io
+import re
 from datetime import date
+from pathlib import Path
 
 import pytest
-from conftest import FIXED_NOW
+from conftest import FIXED_NOW, photo_bytes
 from sqlalchemy import select
 
-from docmanager.config import LEGAL_NOTE
-from docmanager.models.box import Box
+from docmanager.config import LEGAL_NOTE, Paths
+from docmanager.models.box import Batch, Box
 from docmanager.models.client import Client
 from docmanager.models.document import DocState, Document
-from docmanager.models.records import StateChange
+from docmanager.models.page import Page
+from docmanager.models.records import DisposalRecord, StateChange
+from docmanager.services import disposal
 
 PDF_BYTES = b"%PDF-1.4 pretend this is a PDF"
 ARCHIVE = "C-0042 Hollybrook Bakery Ltd/Invoices"
@@ -369,3 +374,351 @@ def test_the_document_page_of_a_binned_document_offers_restore_not_move(
 
     assert f'action="/documents/{document.id}/restore"' in page
     assert "Move to bin" not in page
+
+
+# --- Task 23: Empty bin and disposal records (AT-19 second half: D4 to D6, B5) ---
+
+SPEC_RECORD_FIELDS = {
+    "id",
+    "filed_name",
+    "doc_type_label",
+    "client_ref",
+    "client_name",
+    "document_date",
+    "keep_until",
+    "page_count",
+    "binned_at",
+    "destroyed_at",
+}
+
+
+@pytest.fixture
+def paths(app):
+    return app.config["PATHS"]
+
+
+@pytest.fixture
+def binned(db, data_dir, make_document):
+    """A document in the bin with two grouped pages, all with real files on disk."""
+
+    def make(number="INV-1043", *, clash=False):
+        document = make_document(number=number)
+        box = document.box
+        batch = db.scalars(select(Batch)).first() or Batch(
+            box=box,
+            uploaded_at=FIXED_NOW,
+            added_count=0,
+            skipped_count=0,
+            refused_count=0,
+        )
+        for position in (1, 2):
+            sha = f"sha-{document.id}-{position}"
+            page = Page(
+                box=box,
+                batch=batch,
+                sha256=sha,
+                original_filename=f"IMG_{document.id}{position}.jpg",
+                photo_path=f"photos/{box.id}/{sha}.jpg",
+                thumb_path=f"thumbs/{box.id}/{sha}.jpg",
+                document=document,
+                position=position,
+            )
+            page._state = "grouped"
+            db.add(page)
+            for rel in (page.photo_path, page.thumb_path):
+                (data_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+                (data_dir / rel).write_bytes(b"jpeg")
+        db.commit()
+        if clash:
+            taken = data_dir / document.pdf_path
+            taken.parent.mkdir(parents=True, exist_ok=True)
+            taken.write_bytes(b"x")
+            document.pdf_path = document.pdf_path.replace(".pdf", " (2).pdf")
+            document.filed_name = document.filed_name.replace(".pdf", " (2).pdf")
+            (data_dir / document.pdf_path).write_bytes(PDF_BYTES)
+            db.commit()
+        (data_dir / "work").mkdir(exist_ok=True)
+        (data_dir / "work" / f"{document.id}.txt").write_text("ocr text")
+        # keep_until is behind "today", so it can be binned the normal way.
+        disposal.move_to_bin(db, [document.id], paths=Paths(data_dir), now=FIXED_NOW)
+        db.commit()
+        return document
+
+    return make
+
+
+@pytest.fixture
+def lone_photos(client, db):
+    """Upload three photos and mark two of them "Not a page"."""
+    client.post(
+        "/upload",
+        data={
+            "choice": "new",
+            "new_box_name": "Box 9",
+            "photos": [
+                (io.BytesIO(photo_bytes(f"P{n}")), f"IMG_000{n}.jpg") for n in (1, 2, 3)
+            ],
+        },
+        content_type="multipart/form-data",
+    )
+    box = db.scalars(select(Box).where(Box.name == "Box 9")).one()
+    pages = db.scalars(
+        select(Page).where(Page.box_id == box.id).order_by(Page.id)
+    ).all()
+    client.post(
+        f"/boxes/{box.id}/discard",
+        data={"discard": [str(pages[0].id), str(pages[1].id)]},
+    )
+    db.expire_all()
+    return pages
+
+
+def confirm_form(page):
+    """The ids the confirmation page carries in its hidden fields."""
+    return {
+        "document": re.findall(r'name="document" value="(\d+)"', page),
+        "page": re.findall(r'name="page" value="(\d+)"', page),
+    }
+
+
+def all_files(data_dir):
+    return {p.relative_to(data_dir) for p in data_dir.rglob("*") if p.is_file()}
+
+
+# --- D4: the confirmation page deletes nothing ---
+
+
+def test_d4_empty_bin_asks_first_and_lists_every_item(
+    client, db, data_dir, binned, lone_photos
+):
+    documents = [binned(f"INV-{n}") for n in (1, 2, 3)]
+    before = all_files(data_dir)
+
+    page = text(client.get("/bin/empty"))
+
+    assert "This cannot be undone" in page
+    assert LEGAL_NOTE in page
+    assert "Yes, destroy these 5 items permanently" in page
+    assert "Cancel" in page
+    for document in documents:
+        assert document.filed_name in page
+    assert lone_photos[0].original_filename in page
+    assert lone_photos[1].original_filename in page
+    assert lone_photos[2].original_filename not in page  # still in the inbox
+    ids = confirm_form(html.unescape(client.get("/bin/empty").get_data(as_text=True)))
+    assert len(ids["document"]) == 3 and len(ids["page"]) == 2
+    # Nothing was deleted.
+    assert all_files(data_dir) == before
+    assert db.scalars(select(DisposalRecord)).all() == []
+    assert len(db.scalars(select(Document)).all()) == 3
+
+
+def test_the_bin_offers_empty_bin_only_when_it_holds_something(client, binned):
+    assert "Empty bin" not in text(client.get("/bin"))
+
+    binned()
+
+    assert 'href="/bin/empty"' in text(client.get("/bin"))
+    assert "Empty bin…" in text(client.get("/bin"))
+
+
+def test_the_confirmation_page_for_an_empty_bin_goes_back_to_the_bin(client):
+    response = client.get("/bin/empty", follow_redirects=True)
+
+    assert "The Bin is empty" in text(response)
+
+
+def test_the_confirmation_is_worded_in_the_singular_for_one_item(client, binned):
+    binned()
+
+    assert "Yes, destroy this item permanently" in text(client.get("/bin/empty"))
+
+
+# --- D5: confirm ---
+
+
+def test_d5_confirming_destroys_everything_but_a_record_per_document(
+    client, db, data_dir, paths, binned, lone_photos
+):
+    documents = [binned(f"INV-{n}") for n in (1, 2, 3)]
+    kept_photo = lone_photos[2]
+    kept_files = {Path(kept_photo.photo_path), Path(kept_photo.thumb_path)}
+    form = confirm_form(text(client.get("/bin/empty")))
+
+    response = client.post("/bin/empty", data=form, follow_redirects=True)
+
+    assert (
+        "3 documents and 2 photos destroyed. "
+        "A disposal record was kept for each document." in text(response)
+    )
+    db.expire_all()
+    # No Document, StateChange rows for them, and Page rows only for the kept photo.
+    assert db.scalars(select(Document)).all() == []
+    assert [p.id for p in db.scalars(select(Page))] == [kept_photo.id]
+    remaining = db.scalars(select(StateChange)).all()
+    assert {(r.object_kind, r.object_id) for r in remaining} == {
+        ("page", kept_photo.id)
+    }
+    # No files except the photo that was never in the bin.
+    left = {p for p in all_files(data_dir) if p.parts[0] not in ("logs",)}
+    left.discard(Path("app.db"))
+    assert left == kept_files
+    assert len(db.scalars(select(DisposalRecord)).all()) == 3
+    assert documents  # ids were real
+
+
+def test_each_record_has_exactly_the_spec_fields_and_the_documents_values(
+    client, db, binned
+):
+    document = binned("INV-1043")
+    page_count = len(document.pages)
+    client.post("/bin/empty", data=confirm_form(text(client.get("/bin/empty"))))
+
+    columns = {c.name for c in DisposalRecord.__table__.columns}
+    assert columns == SPEC_RECORD_FIELDS
+    (record,) = db.scalars(select(DisposalRecord)).all()
+    assert record.filed_name == "2021-03-14 Invoice INV-1043.pdf"
+    assert record.doc_type_label == "Invoice"
+    assert (record.client_ref, record.client_name) == (
+        "C-0042",
+        "Hollybrook Bakery Ltd",
+    )
+    assert record.document_date == date(2021, 3, 14)
+    assert record.keep_until == date(2026, 10, 26)
+    assert record.page_count == page_count == 2
+    assert record.binned_at == FIXED_NOW
+    assert record.destroyed_at == FIXED_NOW
+
+
+def test_a_document_filed_with_a_2_suffix_keeps_it_in_its_record(client, db, binned):
+    binned(clash=True)
+    client.post("/bin/empty", data=confirm_form(text(client.get("/bin/empty"))))
+
+    (record,) = db.scalars(select(DisposalRecord)).all()
+
+    assert record.filed_name == "2021-03-14 Invoice INV-1043 (2).pdf"
+
+
+def test_there_are_no_records_for_photos(client, db, lone_photos):
+    client.post("/bin/empty", data=confirm_form(text(client.get("/bin/empty"))))
+
+    assert db.scalars(select(DisposalRecord)).all() == []
+    assert [p.id for p in db.scalars(select(Page))] == [lone_photos[2].id]
+
+
+def test_the_message_is_worded_for_one_photo_and_for_documents_only(
+    client, db, binned, lone_photos
+):
+    # Two photos and no documents: no sentence about records.
+    response = client.post(
+        "/bin/empty",
+        data=confirm_form(text(client.get("/bin/empty"))),
+        follow_redirects=True,
+    )
+    page = text(response)
+    assert "2 photos destroyed." in page
+    assert "disposal record" not in page
+
+    binned()
+    response = client.post(
+        "/bin/empty",
+        data=confirm_form(text(client.get("/bin/empty"))),
+        follow_redirects=True,
+    )
+    assert (
+        "1 document destroyed. A disposal record was kept for each document."
+        in text(response)
+    )
+
+
+def test_destroying_the_documents_writes_nothing_to_disk_before_the_rows_go(
+    client, db, data_dir, binned
+):
+    """The files are deleted after the commit, so a failed commit loses no files."""
+    document = binned()
+    form = confirm_form(text(client.get("/bin/empty")))
+    assert (data_dir / "bin" / f"{document.id}.pdf").is_file()
+
+    client.post("/bin/empty", data=form)
+
+    assert not (data_dir / "bin" / f"{document.id}.pdf").exists()
+    assert not (data_dir / "work" / f"{document.id}.txt").exists()
+
+
+# --- B5: a destroyed photo can be uploaded again ---
+
+
+def test_b5_a_destroyed_photo_can_be_uploaded_again(client, db, lone_photos):
+    client.post("/bin/empty", data=confirm_form(text(client.get("/bin/empty"))))
+
+    response = client.post(
+        "/upload",
+        data={
+            "choice": "new",
+            "new_box_name": "Box 10",
+            "photos": [(io.BytesIO(photo_bytes("P1")), "IMG_0001.jpg")],
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert "1 photo added" in text(response)
+    assert "skipped" not in text(response)
+
+
+# --- D6: only what was confirmed ---
+
+
+def test_d6_an_item_binned_after_the_page_was_opened_is_not_destroyed(
+    client, db, data_dir, binned
+):
+    first_id = binned("INV-1").id
+    form = confirm_form(text(client.get("/bin/empty")))
+    second = binned("INV-2")  # binned after the confirmation page was opened
+
+    response = client.post("/bin/empty", data=form, follow_redirects=True)
+
+    assert "1 document destroyed" in text(response)
+    db.expire_all()
+    assert db.get(Document, first_id) is None
+    assert db.get(Document, second.id).state == DocState.IN_BIN
+    assert (data_dir / "bin" / f"{second.id}.pdf").is_file()
+    assert len(db.scalars(select(DisposalRecord)).all()) == 1
+
+
+def test_d6_an_item_restored_after_the_page_was_opened_is_not_destroyed(
+    client, db, data_dir, binned
+):
+    document = binned()
+    form = confirm_form(text(client.get("/bin/empty")))
+    client.post(f"/documents/{document.id}/restore")
+
+    response = client.post("/bin/empty", data=form, follow_redirects=True)
+
+    assert "Nothing to destroy" in text(response)
+    db.expire_all()
+    assert db.get(Document, document.id).state == DocState.FILED
+    assert db.scalars(select(DisposalRecord)).all() == []
+
+
+def test_a_post_with_no_ids_destroys_nothing(client, binned, db):
+    binned()
+
+    response = client.post("/bin/empty", follow_redirects=True)
+
+    assert "Nothing to destroy" in text(response)
+    assert len(db.scalars(select(Document)).all()) == 1
+
+
+def test_a_crafted_post_naming_a_filed_document_does_not_destroy_it(
+    client, db, make_document
+):
+    document = make_document()
+
+    response = client.post(
+        "/bin/empty", data={"document": str(document.id)}, follow_redirects=True
+    )
+
+    assert "Nothing to destroy" in text(response)
+    db.expire_all()
+    assert db.get(Document, document.id).state == DocState.FILED

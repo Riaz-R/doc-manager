@@ -1117,3 +1117,9 @@ alternatives.
 - **Alternatives considered:** Moving the documents that pass and refusing the rest; refusing to bin a document with a missing PDF.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 181. Task 23: what "only what was confirmed" means, and what emptying the bin deletes
+- **Decision:** `empty_bin()` destroys only the ids carried by the confirmation page, and only those still in the bin when you confirm (D6). An item restored in the meantime is skipped, not an error; if nothing is left it says "Nothing to destroy". Unlike the other disposal functions, `empty_bin()` commits itself, so it can delete the files after the commit (decision 15). Besides the PDF and the photos and thumbnails, it deletes `work/<id>.txt` (the OCR sidecar) and any leftover `work/<id>.pdf`. The destroy StateChange that `apply("destroy")` writes is deleted with the rest of the history, as SPEC 3.6 says. The message leaves out a part with a zero count and the "disposal record" sentence when no documents were destroyed ("2 photos destroyed."). The button reads "Yes, destroy this item permanently" for one item. Empty bin… only shows on the Bin when it holds something.
+- **Alternatives considered:** Refusing the whole request if any item is no longer in the bin; destroying files before the commit.
+- **Who chose:** Claude
+- **Why I agreed:**

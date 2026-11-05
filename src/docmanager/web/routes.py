@@ -255,6 +255,31 @@ def bin_screen():
     )
 
 
+@bp.get("/bin/empty")
+def empty_bin_confirm():
+    session = get_session()
+    pages = grouping.binned_pages(session)
+    documents = disposal.binned_documents(session)
+    if not pages and not documents:
+        flash("The Bin is empty")
+        return redirect(url_for("main.bin_screen"))
+    return render_template("empty_bin.html", pages=pages, documents=documents)
+
+
+@bp.post("/bin/empty")
+def empty_bin():
+    session = get_session()
+    result = disposal.empty_bin(
+        session,
+        _ids("document"),
+        _ids("page"),
+        paths=current_app.config["PATHS"],
+        now=current_app.config["CLOCK"](),
+    )
+    flash(result.message())
+    return redirect(url_for("main.bin_screen"))
+
+
 @bp.get("/due")
 def due_for_disposal():
     documents = disposal.due_documents(get_session(), _today())
@@ -263,8 +288,7 @@ def due_for_disposal():
 
 @bp.post("/due/bin")
 def bin_ticked():
-    ids = [int(raw) for raw in request.form.getlist("document") if raw.isdigit()]
-    return _move_to_bin(ids, back="main.due_for_disposal")
+    return _move_to_bin(_ids("document"), back="main.due_for_disposal")
 
 
 @bp.post("/documents/<int:document_id>/bin")
@@ -361,6 +385,11 @@ def too_big(_error) -> object:
         "photos, then the rest, into the same box."
     )
     return redirect(url_for("main.upload_form"))
+
+
+def _ids(name: str) -> list[int]:
+    """The numbers posted under `name`; anything that isn't a number is dropped."""
+    return [int(raw) for raw in request.form.getlist(name) if raw.isdigit()]
 
 
 def _move_to_bin(ids: list[int], *, back: str, **back_args):

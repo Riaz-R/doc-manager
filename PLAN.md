@@ -34,7 +34,7 @@
 **Sitting (e) Retention and destruction**
 - [x] Task 21: Retention
 - [x] Task 22: Due for disposal, Move to bin, restore
-- [ ] Task 23: Empty bin and disposal records
+- [x] Task 23: Empty bin and disposal records
 
 **Sitting (f) Seed script and README**
 - [ ] Task 24: Seed fills boxes and documents
