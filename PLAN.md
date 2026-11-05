@@ -38,7 +38,7 @@
 
 **Sitting (f) Seed script and README**
 - [x] Task 24: Seed fills boxes and documents
-- [ ] Task 25: README and manual checks
+- [x] Task 25: README and manual checks
 
 **Gate.** Every task ends with its Done-when command passing and this gate green:
 `uv run ruff format --check && uv run ruff check && uv run pytest`
