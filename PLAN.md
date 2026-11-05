@@ -37,7 +37,7 @@
 - [x] Task 23: Empty bin and disposal records
 
 **Sitting (f) Seed script and README**
-- [ ] Task 24: Seed fills boxes and documents
+- [x] Task 24: Seed fills boxes and documents
 - [ ] Task 25: README and manual checks
 
 **Gate.** Every task ends with its Done-when command passing and this gate green:

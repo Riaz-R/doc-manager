@@ -1123,3 +1123,21 @@ alternatives.
 - **Alternatives considered:** Refusing the whole request if any item is no longer in the bin; destroying files before the commit.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 182. Task 24: filling the demo boxes is a separate step from adding the clients
+- **Decision:** `seed()` still only adds clients. A new `fill_demo_boxes()` fills the two boxes, and the `docmanager seed` command runs both, so `seed --reset` gives the full demo (AT-23). Keeping them apart means the many fast seed tests need no OCR. Filling goes through the real services (`upload_photos`, `make_document`, `read_document`, `discard_pages`, `move_to_bin`) with the real OCR program, and `docmanager seed` prints that it takes about a minute. If a demo document doesn't come out as planned (for example OCR misreads it), it stops with a message instead of leaving a wrong demo.
+- **Alternatives considered:** Putting the filling inside `seed()` (every seed test would then need OCR); filling through the web routes with the test client.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 183. Task 24: the boxes are only added to a folder the seed script made, and only once
+- **Decision:** `fill_demo_boxes()` does nothing, and says why, if the data folder has no `.demo-data` marker (it may hold someone's real work) or if the boxes are already there. Without the OCR programs, `docmanager seed` still adds the clients, then prints the missing programs and the apt command and exits with 1. The old test "seeding doesn't need the OCR tools" became this one, because it is no longer true.
+- **Alternatives considered:** Filling any folder; skipping the boxes silently when OCR is missing.
+- **Who chose:** Claude
+- **Why I agreed:**
+
+### 184. Task 24: the seeded documents are not the `make-photos` ones
+- **Decision:** The seed draws its own documents (made-up suppliers and invoice numbers), with its own lens covers. If it used the `make-photos` photos, uploading `~/demo-box` in demo step 2 would skip every photo as "already uploaded". A test checks that no seeded photo has the same bytes as a demo-box photo. Box 1 has one Filed invoice (dated 2025, kept to 2031), one letter with no date, two Due documents (an invoice from 2016 and a letter from 2017) and one invoice from 2016 that is In bin. Box 2 has an unclear document (Needs checking), two lens covers in the Bin and three loose photos to sort. Box 1 has no lens covers or leftover photos, so its paper can go.
+- **Alternatives considered:** Reusing the demo documents; giving Box 1 some "Not a page" photos too.
+- **Who chose:** Claude
+- **Why I agreed:**

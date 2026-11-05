@@ -4,6 +4,7 @@ Everything written here is invented (names, numbers, addresses). No real documen
 is ever used.
 """
 
+import io
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,6 +130,142 @@ UNCLEAR = DemoDocument(
 DEMO_DOCUMENTS = (INVOICE, LETTER, UNCLEAR)
 
 
+def _invoice(name, supplier, number, date, ref, client, street, items, amount):
+    """A one-page made-up invoice. `items` are (description, price) pairs."""
+    lines = [
+        "INVOICE",
+        "",
+        supplier,
+        f"Invoice number {number}",
+        f"Invoice date {date}",
+        "",
+        f"Client reference {ref}",
+        client,
+        street,
+        "",
+        "All prices in pounds",
+    ]
+    lines += [f"{what}    {price}" for what, price in items]
+    lines += [
+        "",
+        f"Amount due {amount}",
+        "",
+        "Please pay by bank transfer within 30 days, quoting the invoice number.",
+    ]
+    return DemoDocument(name, (tuple(lines),))
+
+
+def _letter(name, ref, greeting, subject, date, body):
+    lines = ["Fernwood Accountancy Services", "4 Orchard Court, Daleford", ""]
+    if date:
+        lines += [date, ""]
+    lines += [f"Our ref: {ref}", "", greeting, "", f"Re: {subject}", "", body, ""]
+    lines += ["Yours sincerely,", "A. Whitcombe", "Fernwood Accountancy Services"]
+    return DemoDocument(name, (tuple(lines),))
+
+
+# The documents the seed script puts in the demo boxes. They are different from the
+# `make-photos` ones on purpose: the app skips a photo it has already seen, so
+# sharing a photo would break the live upload in the demo script.
+SEED_FILED = _invoice(
+    "seed filed invoice",
+    "Pennine Dental Supplies",
+    "INV-2207",
+    "10/06/2025",
+    "C-0007",
+    "Ashgrove Dental Practice",
+    "8 Chapel Street, Daleford",
+    [("Examination gloves, boxes x 10", "64.00"), ("Paper bibs, packs x 5", "31.00")],
+    "95.00",
+)
+SEED_NO_DATE = _letter(
+    "seed letter without a date",
+    "C-0013",
+    "Dear Mr Lindqvist,",
+    "Greenhouse delivery query",
+    None,
+    (
+        "Thank you for your question about the greenhouse panels. We have "
+        "checked our records and can confirm the panels were sent to your "
+        "garden centre last season. Please let us know if any are missing."
+    ),
+)
+SEED_DUE_INVOICE = _invoice(
+    "seed due invoice",
+    "Brightwell Flour Mills",
+    "INV-0388",
+    "12/04/2016",
+    "C-0042",
+    "Hollybrook Bakery Ltd",
+    "12 Mill Lane, Daleford",
+    [("Flour, 16kg sacks x 4", "48.00"), ("Sugar, 25kg sacks x 2", "36.00")],
+    "84.00",
+)
+SEED_DUE_LETTER = _letter(
+    "seed due letter",
+    "C-0034",
+    "Dear Ms Okafor,",
+    "Quarterly tax figures",
+    "20 September 2017",
+    (
+        "We are writing to confirm that the figures for the quarter have been "
+        "sent to the tax office on time. Nothing more is needed from you, and "
+        "we will write again when the next quarter is due."
+    ),
+)
+SEED_BIN_INVOICE = _invoice(
+    "seed binned invoice",
+    "Tarn Timber Merchants",
+    "INV-0912",
+    "02/11/2016",
+    "C-0051",
+    "Marlowe Joinery Ltd",
+    "Unit 9, Canal Yard, Daleford",
+    [("Oak boards, 2.4m x 12", "220.00"), ("Wood glue, 5 litre x 2", "90.00")],
+    "310.00",
+)
+SEED_UNCLEAR = DemoDocument(
+    "seed unclear",
+    (
+        (
+            "Jobs for the week",
+            "",
+            (
+                "Move the old filing trolley into the cellar. Ring about the "
+                "broken gate latch. Find the box of spare light bulbs, which "
+                "was last seen on the landing."
+            ),
+        ),
+        (
+            "More jobs",
+            "",
+            (
+                "Sweep the yard on Thursday. Take the glass to the recycling "
+                "bank. Ask the neighbours whether the skip is still wanted "
+                "and move the bikes out of the hall."
+            ),
+        ),
+    ),
+)
+SEED_LOOSE_PAGES = tuple(
+    DemoDocument(
+        f"seed loose page {number}",
+        (
+            (
+                f"Loose page {number}",
+                "",
+                (
+                    f"This page, number {number} of the pile, has not been put in a "
+                    "document yet. It is waiting in the inbox to be sorted, "
+                    "and nobody has read it."
+                ),
+            ),
+        ),
+    )
+    for number in (1, 2, 3)
+)
+
+
 def render_page(lines) -> Image.Image:
     """Typed text on a white page. Long lines wrap inside the margins."""
     image = Image.new("RGB", PAGE_SIZE, "white")
@@ -165,6 +302,15 @@ def _wrap(line: str, font, max_width: int) -> list[str]:
     return pieces
 
 
+def jpeg_bytes(image: Image.Image, comment: str) -> bytes:
+    """The photo as JPEG bytes. The comment keeps two black lens covers from being identical."""
+    buffer = io.BytesIO()
+    image.save(
+        buffer, format="JPEG", quality=90, dpi=(DPI, DPI), comment=comment.encode()
+    )
+    return buffer.getvalue()
+
+
 def write_demo_box(out_dir) -> list[Path]:
     """Write the demo box as IMG_0001.jpg ... and return the paths in order.
 
@@ -185,8 +331,6 @@ def write_demo_box(out_dir) -> list[Path]:
     paths = []
     for number, (image, comment) in enumerate(photos, start=1):
         path = out_dir / f"IMG_{number:04d}.jpg"
-        image.save(
-            path, format="JPEG", quality=90, dpi=(DPI, DPI), comment=comment.encode()
-        )
+        path.write_bytes(jpeg_bytes(image, comment))
         paths.append(path)
     return paths

@@ -16,7 +16,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     make_photos.add_argument("out_dir", metavar="OUT_DIR", help="folder to write into")
     seed_command = commands.add_parser(
-        "seed", help="add the made-up demo clients to the data folder"
+        "seed",
+        help="add the made-up demo clients and two demo boxes to the data folder",
     )
     seed_command.add_argument(
         "--reset",
@@ -32,11 +33,13 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.command == "seed":
         try:
-            result = seed.seed(config.Paths.from_env().root, reset=args.reset)
+            root = config.Paths.from_env().root
+            print(seed.seed(root, reset=args.reset).message())
+            print("Filling the demo boxes. Each page is read with OCR: about a minute.")
+            print(seed.fill_demo_boxes(root).message())
         except seed.SeedRefused as refusal:
             print(refusal, file=sys.stderr)
             raise SystemExit(1) from None
-        print(result.message())
         return
 
     problems = ocr.check_ocr_tools()

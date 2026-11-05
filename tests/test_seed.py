@@ -281,6 +281,22 @@ def test_the_messages_say_what_happened():
 # --- The command ---
 
 
+@pytest.fixture
+def stub_fill(monkeypatch):
+    """The command also fills the demo boxes, which reads pages with OCR (slow).
+
+    Tests that only check the clients use this to replace the filling with a recorder.
+    """
+    calls = []
+    monkeypatch.setattr(
+        seed,
+        "fill_demo_boxes",
+        lambda root, **kw: calls.append(root) or seed.FillResult(True),
+    )
+    return calls
+
+
+@pytest.mark.usefixtures("stub_fill")
 def test_the_seed_command_seeds_the_data_folder_from_the_environment(
     monkeypatch, tmp_path, capsys
 ):
@@ -293,6 +309,7 @@ def test_the_seed_command_seeds_the_data_folder_from_the_environment(
     assert f"Added {len(seed.DEMO_CLIENTS)} clients." in capsys.readouterr().out
 
 
+@pytest.mark.usefixtures("stub_fill")
 def test_the_seed_command_with_reset_empties_a_seeded_folder(monkeypatch, tmp_path):
     folder = tmp_path / "somewhere"
     monkeypatch.setenv("DOCMANAGER_DATA", str(folder))
@@ -304,6 +321,7 @@ def test_the_seed_command_with_reset_empties_a_seeded_folder(monkeypatch, tmp_pa
     assert not (folder / "stray.txt").exists()
 
 
+@pytest.mark.usefixtures("stub_fill")
 def test_the_seed_command_refuses_an_unmarked_folder_with_a_message_and_an_exit(
     monkeypatch, tmp_path, capsys
 ):
@@ -321,16 +339,30 @@ def test_the_seed_command_refuses_an_unmarked_folder_with_a_message_and_an_exit(
     assert not (folder / "app.db").exists()
 
 
-def test_the_seed_command_does_not_start_the_server_or_need_the_ocr_tools(
-    monkeypatch, tmp_path
-):
+def test_the_seed_command_never_starts_the_server(monkeypatch, tmp_path, stub_fill):
     from flask import Flask
 
     monkeypatch.setenv("DOCMANAGER_DATA", str(tmp_path / "somewhere"))
     monkeypatch.setattr(Flask, "run", lambda *a, **k: pytest.fail("server started"))
-    monkeypatch.setattr(ocr, "check_ocr_tools", lambda: ["Tesseract isn't installed."])
 
     cli.main(["seed"])
+
+
+def test_without_the_ocr_programs_the_clients_are_added_then_it_says_how_to_fix_it(
+    monkeypatch, tmp_path, capsys
+):
+    folder = tmp_path / "somewhere"
+    monkeypatch.setenv("DOCMANAGER_DATA", str(folder))
+    monkeypatch.setattr(ocr, "check_ocr_tools", lambda: ["Tesseract isn't installed."])
+
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["seed"])
+
+    assert stop.value.code == 1
+    captured = capsys.readouterr()
+    assert "Tesseract isn't installed." in captured.err
+    assert ocr.APT_COMMAND in captured.err
+    assert len(clients_in(folder)) == len(seed.DEMO_CLIENTS)  # the clients are there
 
 
 def test_the_seed_command_takes_no_other_options(capsys):
@@ -338,3 +370,198 @@ def test_the_seed_command_takes_no_other_options(capsys):
         cli.main(["seed", "--everything"])
 
     assert stop.value.code == 2
+
+
+# --- The demo boxes (task 24) ---
+
+import shutil
+
+from conftest import FakeOcr
+
+from docmanager import create_app
+from docmanager.config import MIN_OCR_WORDS
+from docmanager.demo import photos
+from docmanager.models.box import Box
+from docmanager.models.document import DocState
+from docmanager.models.page import Page
+from docmanager.rules.classify import count_words
+
+# The documents in the order the seed script reads them: box 1, then box 2.
+READ_ORDER = (
+    photos.SEED_FILED,
+    photos.SEED_NO_DATE,
+    photos.SEED_DUE_INVOICE,
+    photos.SEED_DUE_LETTER,
+    photos.SEED_BIN_INVOICE,
+    photos.SEED_UNCLEAR,
+)
+
+
+class TextsInOrder:
+    """A fake OCR that gives each document its own text, in the order they are read."""
+
+    def __init__(self, documents=READ_ORDER):
+        self.texts = iter(d.text for d in documents)
+
+    def __call__(self, pdf_in, pdf_out, sidecar):
+        shutil.copyfile(pdf_in, pdf_out)
+        sidecar.write_text(next(self.texts))
+
+
+def check_the_demo_boxes(data, now):
+    """The AT-23 checks, shared by the fast test (fake OCR) and the real one."""
+    app = create_app({"DATA_DIR": data, "CLOCK": lambda: now})
+    with app.extensions["docmanager_sessions"]() as db:
+        today = now.date()
+        box1 = db.scalars(select(Box).where(Box.name == seed.BOX_ONE)).one()
+        box2 = db.scalars(select(Box).where(Box.name == seed.BOX_TWO)).one()
+
+        # Box 1: paper can go, with the four kinds of document.
+        assert box1.paper_can_go()
+        docs = sorted(box1.documents, key=lambda d: d.id)
+        assert [d.state for d in docs] == [DocState.FILED] * 4 + [DocState.IN_BIN]
+        assert sum(d.has_no_date for d in docs) == 1
+        assert sum(d.is_due(today) for d in docs) == 2
+        assert [
+            d
+            for d in docs
+            if d.state == DocState.FILED and not d.is_due(today) and not d.has_no_date
+        ]  # one plain Filed document
+        assert docs[4].binned_at is not None and docs[4].keep_until < today
+
+        # Box 2: blocked by photos to sort and a document that needs checking.
+        assert not box2.paper_can_go()
+        assert box2.paper_blockers() == [
+            "3 photos to sort before this paper can go",
+            "1 document needs checking before this paper can go",
+        ]
+        assert [d.state for d in box2.documents] == [DocState.NEEDS_REVIEW]
+        pages = db.scalars(select(Page).where(Page.box_id == box2.id)).all()
+        assert sorted(p.state.value for p in pages) == (
+            ["discarded"] * 2 + ["grouped"] * 2 + ["inbox"] * 3
+        )
+        # And the app says so on Home.
+        home = app.test_client().get("/").get_data(as_text=True)
+        assert "Paper can go" in home
+        assert "3 photos to sort before this paper can go" in home
+        return box1, box2
+
+
+def test_the_demo_boxes_are_filled_through_the_real_services(data):
+    seed.seed(data, now=NOW)
+
+    result = seed.fill_demo_boxes(data, now=NOW, ocr_runner=TextsInOrder())
+
+    assert result.filled
+    check_the_demo_boxes(data, NOW)
+
+
+def test_the_filed_documents_are_at_their_archive_paths_and_the_bin_has_the_pdf(data):
+    seed.seed(data, now=NOW)
+    seed.fill_demo_boxes(data, now=NOW, ocr_runner=TextsInOrder())
+
+    names = sorted(p.name for p in (data / "archive").rglob("*.pdf"))
+    assert names == [
+        "2016-04-12 Invoice INV-0388.pdf",
+        "2017-09-20 Letter Quarterly tax figures.pdf",
+        "2025-06-10 Invoice INV-2207.pdf",
+        "undated Letter Greenhouse delivery query.pdf",
+    ]
+    assert len(list((data / "bin").glob("*.pdf"))) == 1
+
+
+def test_the_demo_boxes_are_only_added_once(data):
+    seed.seed(data, now=NOW)
+    seed.fill_demo_boxes(data, now=NOW, ocr_runner=TextsInOrder())
+
+    again = seed.fill_demo_boxes(data, now=NOW, ocr_runner=TextsInOrder())
+
+    assert not again.filled and "already there" in again.message()
+    app = create_app({"DATA_DIR": data, "CLOCK": lambda: NOW})
+    with app.extensions["docmanager_sessions"]() as db:
+        assert len(db.scalars(select(Box)).all()) == 2
+
+
+def test_a_folder_the_seed_script_did_not_make_is_not_filled(data):
+    data.mkdir()
+    (data / "my-real-work.txt").write_text("hello")
+    seed.seed(data, now=NOW)  # adds clients, but doesn't mark the folder
+
+    result = seed.fill_demo_boxes(data, now=NOW, ocr_runner=TextsInOrder())
+
+    assert not result.filled and "wasn't made by the seed script" in result.message()
+    app = create_app({"DATA_DIR": data, "CLOCK": lambda: NOW})
+    with app.extensions["docmanager_sessions"]() as db:
+        assert db.scalars(select(Box)).all() == []
+
+
+def test_a_document_that_does_not_come_out_as_planned_stops_the_seed(data):
+    seed.seed(data, now=NOW)
+    wrong = FakeOcr(text="Just a few words")  # flagged, but the demo expects Filed
+
+    with pytest.raises(seed.SeedRefused) as refusal:
+        seed.fill_demo_boxes(data, now=NOW, ocr_runner=wrong)
+
+    assert "didn't come out as planned" in str(refusal.value)
+
+
+def test_every_seeded_document_has_enough_words_to_be_trusted():
+    for document in READ_ORDER:
+        assert count_words(document.text) >= MIN_OCR_WORDS, document.name
+
+
+def test_no_seeded_photo_is_the_same_as_a_make_photos_photo(tmp_path):
+    # If it were, uploading the demo box in the demo script would skip it.
+    demo = {p.read_bytes() for p in photos.write_demo_box(tmp_path / "demo")}
+    seeded = set()
+    for document in (*READ_ORDER, *photos.SEED_LOOSE_PAGES):
+        for page in document.pages:
+            seeded.add(photos.jpeg_bytes(photos.render_page(page), "x"))
+    assert not demo & seeded
+    assert len({d.text for d in (*READ_ORDER, *photos.SEED_LOOSE_PAGES)}) == 9
+
+
+def test_the_seed_command_fills_the_boxes_after_adding_the_clients(
+    monkeypatch, tmp_path, capsys
+):
+    folder = tmp_path / "somewhere"
+    monkeypatch.setenv("DOCMANAGER_DATA", str(folder))
+    monkeypatch.setattr(
+        seed,
+        "fill_demo_boxes",
+        lambda root, **kw: seed.FillResult(True),
+    )
+
+    cli.main(["seed"])
+
+    out = capsys.readouterr().out
+    assert "Added 8 clients." in out
+    assert f'Filled "{seed.BOX_ONE}"' in out
+
+
+def test_the_seed_command_reports_a_refusal_from_filling(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("DOCMANAGER_DATA", str(tmp_path / "somewhere"))
+
+    def refuse(root, **kw):
+        raise seed.SeedRefused("OCR is missing")
+
+    monkeypatch.setattr(seed, "fill_demo_boxes", refuse)
+
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["seed"])
+
+    assert stop.value.code == 1
+    assert "OCR is missing" in capsys.readouterr().err
+
+
+@pytest.mark.ocr
+def test_at23_seed_reset_fills_the_boxes_with_the_real_ocr_program(
+    monkeypatch, tmp_path
+):
+    folder = tmp_path / "somewhere"
+    monkeypatch.setenv("DOCMANAGER_DATA", str(folder))
+
+    cli.main(["seed", "--reset"])
+
+    check_the_demo_boxes(folder, datetime.now())
+    assert len(clients_in(folder)) == len(seed.DEMO_CLIENTS)
