@@ -17,7 +17,7 @@ and nobody can find anything in them.
 
 ### Goal
 Photograph a box of paper with a phone, and let the app:
-1. turn the photos into one searchable PDF per document,
+1. turn the photos into one PDF per document, with a text layer so you can search within it,
 2. work out what each document is and which client it belongs to,
 3. file it under a predictable name,
 4. work out how long each digital record must be kept,
