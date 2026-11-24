@@ -1,7 +1,7 @@
 # Doc Manager: Specification
 
 A small local document manager (ECM) that turns boxes of paper client files into
-named, searchable PDFs. Paper can be shredded as soon as it has been digitised;
+named PDFs with a text layer, so you can search within each one. Paper can be shredded as soon as it has been digitised;
 each digital record is kept until its retention period ends, then destroyed.
 
 Status: agreed spec, ready to build. Last updated 2026-10-27.
@@ -37,7 +37,7 @@ The paper never waits for keep-until.
 1. Take a box off the shelf and give it a name in the app, for example "Box 3 – 2017–2019".
 2. Photograph each document's pages in order with the phone. **Tip:** cover the lens for one photo between documents. The dark photos make the gaps easy to see in the inbox.
 3. Upload the photos into that box. A big box may take several uploads.
-4. In the inbox, mark the lens-cover photos and any bad shots "Not a page". Then, for each document, pick its first and last photo and press "Make document". The app reads the document while the page waits, then files it or marks it "Needs checking".
+4. In the inbox, first group each document: pick its first and last photo and press "Make document", leaving the black lens-cover photos in place as visible separators. The app reads the document while the page waits, then files it or marks it "Needs checking". Then tick the black photos and any bad shots and press "Mark ticked as not a page". The lens covers must be cleared this way, or the box never shows "Paper can go". Make document ignores ticks; the inbox ticks are only used by Mark ticked as not a page.
 5. Check flagged documents now or later.
 6. When Home shows "Paper can go" beside the box, shred that box's paper.
 7. Later, as a separate step: when records pass their keep-until date, open "Due for disposal", move them to the bin, and empty the bin with a separate confirmation. This destroys the digital records.
@@ -67,6 +67,7 @@ Dark-photo detection (should tier) will later suggest groupings from the lens-co
 Known limitations until the should tier is built:
 - A document from a client who isn't in the register can't be filed, because clients only come from the seed script.
 - A phone counter rollover (IMG_9999 → IMG_0001) puts photos in the wrong order.
+- There is no search across documents yet.
 - A long document holds the browser page until OCR finishes (up to the 5-minute timeout).
 - Classification is tested on generated text only; how well it does on real phone photos hasn't been measured.
 
@@ -618,7 +619,7 @@ sitting (f) it also fills boxes and documents) and `uv run docmanager make-photo
 
 1. `uv run docmanager`, and open http://127.0.0.1:5000.
 2. **Live upload:** upload `~/demo-box` into a new box "Interview box". Upload one photo twice to show the duplicate skip.
-3. **Inbox:** point out the black lens-cover photos marking the gaps between documents; tick them and press Mark as not a page. Pick First and Last for each document and press Make document. While it reads, show `lifecycle.py` and the `DocumentType` classes.
+3. **Inbox:** point out the black lens-cover photos marking the gaps between documents. Pick First and Last for each document and press Make document (the lens covers stay in place; Make document ignores ticks). While it reads, show `lifecycle.py` and the `DocumentType` classes. Then tick the black photos and press Mark ticked as not a page; they must be cleared for the box to show Paper can go.
 4. **Refusal:** press Make document with only First picked and show the plain-words refusal.
 5. **Filed documents:** show the filed documents and their filenames on disk.
 6. **Needs checking:** open the flagged document, read out its reasons, change its type (same document, new type object), pick the client and file it.

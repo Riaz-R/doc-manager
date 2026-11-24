@@ -1141,3 +1141,15 @@ alternatives.
 - **Alternatives considered:** Reusing the demo documents; giving Box 1 some "Not a page" photos too.
 - **Who chose:** Claude
 - **Why I agreed:**
+
+### 185. Demo order: group the documents first, then clear the lens covers
+- **Decision:** In the README demo, SPEC §1 step 4 and §9 step 3, the order is now: group each document with First and Last (the black lens-cover photos stay in place as visible separators), then tick the black photos and press Mark ticked as not a page. The text says the lens covers must be cleared for the box to show Paper can go, that Make document ignores ticks, and that the inbox ticks are only used by Mark ticked as not a page. The README and SPEC also say "named PDFs with a text layer, so you can search within each one", and list "no search across documents yet" as a limitation.
+- **Alternatives considered:** Ticking the lens covers first (the old wording).
+- **Who chose:** Me
+- **Why I agreed:**
+
+### 186. The README says to run the tests in a second terminal tab
+- **Decision:** The README's Tests section says to run the tests in a second terminal tab while the app is still running in the first. `DOCMANAGER_DATA` moved to a short "Advanced" note, and the `seed --reset` paragraph is shorter.
+- **Alternatives considered:** Saying nothing about it; stopping the app before testing.
+- **Who chose:** Me
+- **Why I agreed:**
