@@ -4,7 +4,7 @@ A small local document manager (ECM) that turns boxes of paper client files into
 named PDFs with a text layer, so you can search within each one. Paper can be shredded as soon as it has been digitised;
 each digital record is kept until its retention period ends, then destroyed.
 
-Status: agreed spec, ready to build. Last updated 2026-10-27.
+Status: must tier built (tasks 1 to 25); should tier specified, not built. Last updated 2026-11-25.
 
 ---
 
@@ -535,7 +535,7 @@ Each test passes only when every stated condition holds; otherwise it fails.
 | AT-22 | No template or static file references an `http(s)://` URL | unit (scan files) |
 | AT-23 | Seed: `uv run docmanager seed --reset` on an empty data folder produces clients, one box showing "Paper can go", one box with blocking lines, inbox photos, "Not a page" photos in the bin, and documents that are Filed, Needs checking, No date, Due and In bin | `ocr` |
 | AT-24 | Manual: the demo script (§9) runs on a fresh clone following README steps only | manual |
-| AT-25 | Manual: every screen is usable at 200% browser zoom, and every action button is at least 48px tall | manual |
+| AT-25 | Manual: every screen is usable at 100% and 150% browser zoom, and every action button is at least 48px tall | manual |
 
 `uv run pytest` must pass, and `uv run ruff check` and `uv run ruff format --check` must be clean, before each commit.
 
@@ -740,6 +740,7 @@ Together these stop a malicious web page in the same browser from submitting the
 app's forms, for example to empty the bin (CSRF and DNS rebinding).
 
 ### 11.9 Smaller items
+- **Make document and ticks:** Make document also applies any ticked Not a page photos, so the order of the two buttons doesn't matter.
 - **List filters and text search** on Filed documents (client, type, OCR text).
 - **History display:** a document's StateChange rows on its page.
 - **Disposal log screen:** DisposalRecords, newest first, read-only.
