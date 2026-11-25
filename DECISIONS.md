@@ -9,11 +9,14 @@ Last updated 2026-11-25.
 - **Proposed by Claude**: decisions I wasn't asked about.
 - **Claude**: a decision Claude Code made while building, within the plan.
 
-Entries 111 to 184 record decisions Claude Code made while building. They are logged for transparency; 'Why I agreed' is filled in only where I reviewed the decision myself.
+Entries marked 'Who chose: Claude' record decisions Claude Code made while building, within the plan. They are logged for transparency; 'Why I agreed' is filled in only where I reviewed the decision myself.
 
 Where something was chosen in the interview and later changed by my edits, the
 entry describes the current decision and lists the interview choice under
 alternatives.
+
+## Summary
+Doc Manager turns photos of paper client files into named PDFs with a text layer, and tells the user when a box's paper can be shredded, separately from when each digital record can be destroyed. All 25 planned tasks are built and 680 tests pass on a fresh clone. The should tier (background OCR, box lifecycle, search, client aliases and more) is specified but not built, and the spec lists the known limitations.
 
 ---
 
@@ -268,7 +271,7 @@ alternatives.
 ### 42. Local OCR with OCRmyPDF and Tesseract
 - **Decision:** Each document becomes a PDF with a text layer, made entirely on this computer.
 - **Alternatives considered:** None discussed; set in my brief.
-- **Who chose:** Me, in the project brief (drafted with Claude)
+- **Who chose:** Me
 - **Why I agreed:** Privacy and lightweight performance were the priority here since the program is aimed at small business owners who likely want to avoid corporate token charges and may be using low spec equipment that would struggle to run more advanced OCR at run time.
 
 ### 43. OCR runs while the page waits; background worker is should tier
@@ -334,7 +337,7 @@ alternatives.
 ### 52. Plain rules, no AI at runtime
 - **Decision:** Each type's `score()` and regular expressions decide type, client and date.
 - **Alternatives considered:** None discussed; set in my brief.
-- **Who chose:** Me, in the project brief (drafted with Claude)
+- **Who chose:** Me
 - **Why I agreed:** Predictable outcomes and lightweight performance, messy documents take a hit but there is a manual review as a safety net.
 
 ### 53. The type must clear a minimum score and beat the runner-up by a margin
@@ -605,7 +608,7 @@ alternatives.
 - **Decision:** The server binds `127.0.0.1:5000`, fixed in code, with no logins.
 - **Alternatives considered:** None discussed; set in my brief.
 - **Who chose:** Me
-- **Why I agreed:** The fastest way to achieve a fully private system that I could get running in order to test the system during development. 
+- **Why I agreed:** No logins, no network exposure, and client files never leave the machine.
 
 ### 95. Cross-site form protections are should tier
 - **Decision:** The form token and Host-header check are in §11.8. The spec states the risk until then.
@@ -1115,16 +1118,26 @@ alternatives.
 - **Decision:** Claude Code works through PLAN.md in batches of about three tasks. It commits after each task, and stops if tests fail twice or a decision isn't covered by the plan.
 - **Alternatives considered:** Stopping after every task.
 - **Who chose:** Me
-- **Why I agreed:** I was losing a lot of time between tasks. Claude Code was fast and generally right, and the bugs I found came from clicking through screens.
+- **Why I agreed:** I was losing a lot of time between tasks. Claude Code was fast and generally right, and the bugs I found came from clicking through the screens, not from reading the summaries.
 
 ### 188. Browser zoom is checked at 100% and 150%, not 200%
 - **Decision:** The manual zoom check (AT-25) uses 100% and 150%. The layout holds at 200% but needs a lot of scrolling on a small display.
 - **Alternatives considered:** Checking at 200%.
 - **Who chose:** Me
-- **Why I agreed:** At 200% the layout holds but needs a lot of scrolling on my small display, and my dad uses 100%. The check is now 100% and 150%.
+- **Why I agreed:** "My dad uses the app at 100%, and at 200% the page needed too much scrolling on a small display to be a fair test."
 
 ### 189. Classification is tested on generated text only
 - **Decision:** Classification is tested on generated text only. How accurate it is on real phone photos hasn't been measured.
-- **Alternatives considered:** Measuring on real photos, which the no-real-data rule rules out.
+- **Alternatives considered:** Testing on photos I took myself, kept out of the repo.
 - **Who chose:** Me
-- **Why I agreed:** Classification is tested on generated text only. I haven't measured it on real phone photos.
+- **Why I agreed:** The build was time-limited, and the repo must never hold real documents. The known limitation is stated in the spec, and the low-text check and the review step are the safety net.
+
+---
+
+## Lessons
+- Tests passed while two screens were broken (#132, #178). Both were found by clicking, so each new screen is now clicked straight after its task.
+- A draft quietly made the paper wait for the retention date. I caught it reading a diff, and the log now separates shredding from destroying records (#1, #19).
+- The first spec was 2.5 times over budget. Cutting it to a demo line meant a working app survived the time pressure.
+- Flagged documents had nowhere to go until the review screen existed. A priority order still needs every state to be visible.
+- A low-text check (#105) guards against a blurry photo being filed and the paper shredded.
+- Next time: test on real phone photos, build each review screen in the same sitting as the step that feeds it, and use plainer commit messages.
