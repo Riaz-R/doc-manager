@@ -767,7 +767,8 @@ alternatives.
 - **Decision:** When `apply()` makes a move whose target is "(row deleted)" (destroy), it records the StateChange with `to_state` empty but doesn't change the object's own state. A blank state would look like "(new)" and let the object be uploaded or grouped again; the disposal service deletes the row in the same transaction anyway.
 - **Alternatives considered:** Setting the state to empty; adding a special "Destroyed" state.
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** After a destroy the object keeps its last state, because a blank state would mean "new" and could briefly let it be uploaded or grouped again. The row is deleted straight afterwards, so it is a cheap safeguard.
+
 
 ### 121. Task 3: `apply()` needs the object to be in a session already
 - **Decision:** Calling `apply()` on an object that hasn't been added to a database session raises a plain `RuntimeError` ("Add this object to a session before applying an action"). This is a mistake in the code, not something a user can cause, so it is not a `UserFacingError`. A new object is added to the session first, and `apply()` then flushes it to get its id before writing the history row, as the plan says.
@@ -909,7 +910,7 @@ alternatives.
 - **Decision:** `Document.guard_file` now refuses with the low-text reason when `ocr_text` has fewer than `MIN_OCR_WORDS` words, so the lifecycle itself enforces what Check 1 reports. The guards still report only the first problem; the order for filing is now: not read yet, too little text, no type, no client (this adds one step to decision 123). `guard_confirm` does not check the text, because a person has looked at the document in review (decision 18), and `guard_flag` still only asks whether the document was read. The empty string still counts as read, so it gets the low-text reason, not "hasn't been read yet". `rules/classify.py` imports the document types only inside `classify()`, because the model package imports this module for the guards and a top-level import would go round in a circle. The shared reason text is `LOW_TEXT_REASON`. In `test_lifecycles.py`, the default made-up document text is now 20 words, and the old "empty text counts as read" test became a group of low-text tests.
 - **Alternatives considered:** Putting `count_words` in a separate small module; putting the text check before the "not read yet" check.
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** Two places refuse a document with too little text: the classification step, which explains why, and the lifecycle's own rule, which stops any code path filing it. Shredding paper after a bad read is the worst outcome in the app, so I want the check enforced twice.
 
 ### 149. Task 12: the shape of `rules/naming.py`, and the template stays in `config.py`
 - **Decision:** Three pure functions. `relative_path(client_ref=, client_name=, doc_type=, fields=, document_date=, template=None)` builds the path **under** the archive folder (as a `PurePosixPath`, so it is the same on every machine) from a `DocumentType` and its fields. `free_path(path, is_taken)` returns the path or the first free "name (2).pdf", "name (3).pdf" ..., where `is_taken` is a function the caller supplies (a test passes a set, filing will pass a check on the disk), so the clash rule needs no files to test. `clean_part(text)` makes one value safe. The template is read from `config.NAMING_TEMPLATE` each time it's needed (plan decision 2), so a test can change it. The caller will keep the chosen path in `pdf_path` and its last part (`path.name`, suffix included) in `filed_name`. Whether Windows treats "A.pdf" and "a.pdf" as the same file is not handled.
@@ -925,7 +926,7 @@ alternatives.
 - **Decision:** `run_ocrmypdf(pdf_in, pdf_out, sidecar, *, timeout=None, command=None)` runs `python -m ocrmypdf -l eng --rotate-pages --deskew --sidecar <sidecar> <in> <out>` with the same Python that runs the app. It raises `OcrFailed` (whose `.detail` is the technical text for the log) when the program exits with anything but 0 (the detail holds the exit code and the **last** 2000 characters of its error output), when it takes longer than the timeout (default `config.OCR_TIMEOUT_SECONDS`, 300), or when it exits 0 but didn't write both the PDF and the text file. The program is started in its own process group, and on a timeout the **whole group** is killed, because OCRmyPDF starts Tesseract and Ghostscript, and killing only the parent would leave them running (and would make the web request wait for them). This needs Linux or macOS (it uses `start_new_session` and `killpg`), which is fine for the apt-based setup; a Windows version would need changing. `command` replaces the program, only so tests can use a stand-in script. `OcrFailed` is a plain exception, not a `UserFacingError`: the user sees the fixed sentence `OCR_ERROR_MESSAGE` ("Couldn't read this document. Try again, or retake the photos.") on the document instead.
 - **Alternatives considered:** `subprocess.run(timeout=...)`, which kills only the parent; calling OCRmyPDF's Python API in the web process (a crash or hang would take the app with it).
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** A timeout kills the whole OCR process group, because OCRmyPDF starts Tesseract and Ghostscript, which would otherwise keep running while the page waits. Five minutes is far longer than the roughly 2 seconds a document took in testing, and it is a setting I can raise.
 
 ### 152. Task 13: combining photos, and the `OCR_RUNNER` setting
 - **Decision:** `combine_photos(photo_paths, pdf_path)` uses img2pdf with its defaults: one page per photo, in the order given, each page the size of its photo (JPEGs are embedded untouched, not re-compressed). img2pdf refuses a PNG with transparency or an unusual colour mode, so such a PNG is first flattened onto white (a test covers RGBA, LA, palette and 16-bit PNGs). Any failure while combining (a damaged file, no photos) is raised as `OcrFailed`, so the reading code has one kind of failure to deal with. `create_app` sets `OCR_RUNNER` to `run_ocrmypdf` by default, and a test can replace it with a function taking `(pdf_in, pdf_out, sidecar)`. EXIF rotation isn't applied (that is the should-tier item B9).
@@ -941,7 +942,7 @@ alternatives.
 - **Decision:** `filing.read_document(session, document, *, paths, ocr_runner, now)` (1) refuses a document that isn't Grouped or already has text, with "This document has already been read"; (2) commits, so the Grouped document is safely stored before the long OCR step (plan decision 5; this is the one service that commits itself, and the route commits the outcome afterwards); (3) clears any old `work/<id>.pdf` and `work/<id>.txt`, combines the photos into `work/<id>-images.pdf`, runs the OCR program, and reads the text file as UTF-8 (a bad byte is replaced, not a crash); (4) always deletes the images PDF afterwards, while the text file stays in `work/`; (5) on `OcrFailed` writes "Reading document 3 failed: <detail>" to the log, removes partial output, sets `ocr_error` to the fixed sentence and leaves the document Grouped; (6) on success stores the text, clears `ocr_error`, runs `classify`, and stores the type, fields, date, client, both scores and the reasons **even when the document is then flagged** (so review starts from what was found); (7) files it or flags it. Filing works out the archive path and the clash suffix first, then applies `file` (so the guards have the last word), then moves the PDF from `work/` into the archive, and records `pdf_path` ("archive/…", relative to the data folder), `filed_name` and `filed_at`. A flagged document keeps its PDF at `work/<id>.pdf`. Any other error (the power going out, a bug) is not caught: the 500 page is shown and the committed document is left Grouped with no text and no error, which is exactly the W4 case, listed with Retry.
 - **Alternatives considered:** Making the route commit before calling the service; deleting the work PDF of a flagged document.
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** The document is saved before the slow OCR step, so if the app stops mid-read the document is not lost and appears with a Retry button.
 
 ### 155: Task 14: the message after Make document, and what happened to "Document made from photos 3 to 6"
 - **Decision:** The banner is now exactly one of the three the plan lists: "Filed as 2021-03-14 Invoice INV-1043" (the archive filename without ".pdf", including any " (2)"), "Needs checking: <reasons joined with "; ">" (decision 11), or the W2 sentence "Couldn't read this document. Try again, or retake the photos." The Task 7 wording "Document made from photos 3 to 6" was only meant to last until this task, so `MadeDocument.message()` is gone (the first and last numbers stay on `MadeDocument`). Seven earlier tests (in `test_grouping.py` and `test_not_a_page.py`) asserted that wording or the "Not read yet" label; they now check what they were really about (the pages grouped, their positions, the inbox listing) and leave the OCR outcomes to `test_reading.py`.
@@ -987,7 +988,7 @@ alternatives.
 - **Decision:** Plan decision 16 says `--reset` only empties a folder the seed script made (it carries a `.demo-data` marker) or one that is empty. The marker is written **only when the folder had nothing in it** when seeding began (or had just been emptied by `--reset`). A plain `seed` into a folder that already has other things in it adds the clients but does **not** mark it, because marking it would let a later `--reset` delete someone's real work. "Empty" is strict: a missing folder, or one with no entries at all. That includes the folders the app makes when it starts (`photos`, `archive`, `app.db` ...), so a data folder created by running `docmanager` once is **not** empty and has no marker, and `seed --reset` will refuse it. The refusal says so and what to do: "The data folder (…) already has things in it that the seed script didn't make, so --reset won't empty it. To start the demo from scratch, move or delete that folder yourself, or set DOCMANAGER_DATA to a new folder." **For task 25:** the README should tell the demo user to run `seed --reset` before first starting the app, or to use a fresh `DOCMANAGER_DATA`.
 - **Alternatives considered:** Treating an app-made folder with an empty database as empty (it would need a guess about what counts as "nothing"); marking every folder that is seeded.
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** --reset refuses to empty a folder the seed script didn't make. That is less convenient for the demo, but for real use I would rather the program could never delete important files for a convenience I'd rarely use.
 
 ### 164: Task 16: how `--reset` empties, and what it refuses
 - **Decision:** With the marker present, **everything** inside the folder is deleted (the folder itself stays), including any file that isn't the app's: the marker is the seed script's promise that the folder is demo data. A link inside the folder is removed but never followed, so what it points at is untouched (a test proves it). A path that is a file is refused with "… is a file, not a folder." A refusal changes nothing at all: no files deleted, no database made, no marker written. `SeedResult` says how many clients were added and skipped, whether the folder was emptied and whether it is now marked.
@@ -1028,7 +1029,7 @@ alternatives.
 - **Decision:** Decision 161 expected the File it button to be added to `routes.ACTION_BUTTONS`. Those entries are drawn as buttons that **post** straight away, and a post to the Check screen files the document with whatever it already holds, without a person looking. So the Document page instead shows a plain link, "Check this document", while the document is in Needs checking. `ACTION_BUTTONS` stays empty until task 22.
 - **Alternatives considered:** An `ACTION_BUTTONS` entry pointing at the Check screen (it would be a button that does the wrong thing).
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** The Document page links to the Check screen rather than offering a File it button. A button would file the document immediately with whatever it holds, but a document is only flagged because something was uncertain, so filing it unseen would defeat the review.
 
 ### 172. Task 18: what the Check screen does after each outcome
 - **Decision:** The screen is at `/documents/<id>/check` (GET shows it, POST is **File it**). A blank type or client dropdown means "keep what the document already has". After filing, the person goes to the Needs checking list with the "Filed as …" message, so they can carry straight on to the next one. A refusal shows the same form again (status 200) with the message in the banner, the person's type, client and typed values kept, and the hidden "shown" values left as they were first drawn, so the next press of File it still knows what was changed. A document that is no longer in Needs checking (already filed in another tab, or a crafted post) sends the person to its Document page with the refusal, and its Check screen does the same.
@@ -1080,7 +1081,7 @@ alternatives.
 - **Decision:** `empty_bin()` destroys only the ids carried by the confirmation page, and only those still in the bin when you confirm (D6). An item restored in the meantime is skipped, not an error; if nothing is left it says "Nothing to destroy". Unlike the other disposal functions, `empty_bin()` commits itself, so it can delete the files after the commit (decision 15). Besides the PDF and the photos and thumbnails, it deletes `work/<id>.txt` (the OCR sidecar) and any leftover `work/<id>.pdf`. The destroy StateChange that `apply("destroy")` writes is deleted with the rest of the history, as SPEC 3.6 says. The message leaves out a part with a zero count and the "disposal record" sentence when no documents were destroyed ("2 photos destroyed."). The button reads "Yes, destroy this item permanently" for one item. Empty bin… only shows on the Bin when it holds something.
 - **Alternatives considered:** Refusing the whole request if any item is no longer in the bin; destroying files before the commit.
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** The confirmation page lists everything in the bin when it is opened, and only those items are destroyed when I confirm. If something is moved into the bin in the meantime, I haven't seen it, so it is left alone.
 
 ### 182. Task 24: filling the demo boxes is a separate step from adding the clients
 - **Decision:** `seed()` still only adds clients. A new `fill_demo_boxes()` fills the two boxes, and the `docmanager seed` command runs both, so `seed --reset` gives the full demo (AT-23). Keeping them apart means the many fast seed tests need no OCR. Filling goes through the real services (`upload_photos`, `make_document`, `read_document`, `discard_pages`, `move_to_bin`) with the real OCR program, and `docmanager seed` prints that it takes about a minute. If a demo document doesn't come out as planned (for example OCR misreads it), it stops with a message instead of leaving a wrong demo.
@@ -1096,7 +1097,7 @@ alternatives.
 - **Decision:** The seed draws its own documents (made-up suppliers and invoice numbers), with its own lens covers. If it used the `make-photos` photos, uploading `~/demo-box` in demo step 2 would skip every photo as "already uploaded". A test checks that no seeded photo has the same bytes as a demo-box photo. Box 1 has one Filed invoice (dated 2025, kept to 2031), one letter with no date, two Due documents (an invoice from 2016 and a letter from 2017) and one invoice from 2016 that is In bin. Box 2 has an unclear document (Needs checking), two lens covers in the Bin and three loose photos to sort. Box 1 has no lens covers or leftover photos, so its paper can go.
 - **Alternatives considered:** Reusing the demo documents; giving Box 1 some "Not a page" photos too.
 - **Who chose:** Claude
-- **Why I agreed:**
+- **Why I agreed:** The seed's documents differ from the make-photos ones, otherwise uploading the demo box would skip every photo as a duplicate.
 
 ### 185. Demo order: group the documents first, then clear the lens covers
 - **Decision:** In the README demo, SPEC §1 step 4 and §9 step 3, the order is now: group each document with First and Last (the black lens-cover photos stay in place as visible separators), then tick the black photos and press Mark ticked as not a page. The text says the lens covers must be cleared for the box to show Paper can go, that Make document ignores ticks, and that the inbox ticks are only used by Mark ticked as not a page. The README and SPEC also say "named PDFs with a text layer, so you can search within each one", and list "no search across documents yet" as a limitation.
@@ -1114,16 +1115,16 @@ alternatives.
 - **Decision:** Claude Code works through PLAN.md in batches of about three tasks. It commits after each task, and stops if tests fail twice or a decision isn't covered by the plan.
 - **Alternatives considered:** Stopping after every task.
 - **Who chose:** Me
-- **Why I agreed:**
+- **Why I agreed:** I was losing a lot of time between tasks. Claude Code was fast and generally right, and the bugs I found came from clicking through screens.
 
 ### 188. Browser zoom is checked at 100% and 150%, not 200%
 - **Decision:** The manual zoom check (AT-25) uses 100% and 150%. The layout holds at 200% but needs a lot of scrolling on a small display.
 - **Alternatives considered:** Checking at 200%.
 - **Who chose:** Me
-- **Why I agreed:**
+- **Why I agreed:** At 200% the layout holds but needs a lot of scrolling on my small display, and my dad uses 100%. The check is now 100% and 150%.
 
 ### 189. Classification is tested on generated text only
 - **Decision:** Classification is tested on generated text only. How accurate it is on real phone photos hasn't been measured.
 - **Alternatives considered:** Measuring on real photos, which the no-real-data rule rules out.
 - **Who chose:** Me
-- **Why I agreed:**
+- **Why I agreed:** Classification is tested on generated text only. I haven't measured it on real phone photos.
