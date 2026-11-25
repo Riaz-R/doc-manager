@@ -1,6 +1,6 @@
 # Doc Manager
 
-Doc Manager turns photos of paper client files into named PDFs with a text layer, so you can search within each one, on your own computer, and tells you when each box's paper can be shredded and, separately, when each digital record can be destroyed.
+Doc Manager is a demo I built in a fixed time: it turns photos of paper client files into named PDFs with a text layer, on your own computer, and tells you when each box's paper can be shredded, separately from when each record can be destroyed.
 
 Everything runs locally: nothing is sent over the network, and the app only listens on `127.0.0.1` (your own computer).
 
